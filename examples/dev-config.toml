@@ -1,0 +1,15 @@
+[github]
+owner = "example-org"
+repo = "example-repo"
+base_branch = "develop"
+target_branch = "main"
+
+[tags]
+sprint_pattern = "S\\d+"
+environment = "DEV"
+pending_tag = "pending cherrypick"
+completed_tag = "cherry picked"
+
+[ui]
+days_back = 28
+page_size = 20
