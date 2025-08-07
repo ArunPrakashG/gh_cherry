@@ -15,6 +15,7 @@ pub struct CherrypickResult {
     pub commit_sha: Option<String>,
 }
 
+#[allow(dead_code)] // Methods for future Git operations functionality
 impl GitOperations {
     pub fn new<P: AsRef<Path>>(repo_path: P) -> Result<Self> {
         let repo = Repository::open(repo_path)
@@ -77,7 +78,7 @@ impl GitOperations {
         Ok(())
     }
 
-    fn create_tracking_branch(&self, branch_name: &str) -> Result<git2::Branch, git2::Error> {
+    fn create_tracking_branch(&self, branch_name: &str) -> Result<git2::Branch<'_>, git2::Error> {
         // Try to find remote branch (usually origin/branch_name)
         let remote_branch = self.repo.find_branch(&format!("origin/{}", branch_name), git2::BranchType::Remote)?;
         let remote_commit = remote_branch.get().peel_to_commit()?;
@@ -225,7 +226,7 @@ impl GitOperations {
         Ok(())
     }
 
-    fn get_signature(&self) -> Result<Signature> {
+    fn get_signature(&self) -> Result<Signature<'_>> {
         // Try to get signature from git config
         let config = self.repo.config()
             .context("Failed to get git config")?;
@@ -254,7 +255,7 @@ impl GitOperations {
     }
 
     /// Gets the list of commits between two references
-    pub fn get_commits_between(&self, from: &str, to: &str) -> Result<Vec<git2::Commit>> {
+    pub fn get_commits_between(&self, from: &str, to: &str) -> Result<Vec<git2::Commit<'_>>> {
         let from_oid = self.repo.revparse_single(from)?.id();
         let to_oid = self.repo.revparse_single(to)?.id();
 

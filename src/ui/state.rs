@@ -127,6 +127,7 @@ impl AppState {
         self.error_message = None;
     }
 
+    #[allow(dead_code)] // Useful utility method for future use
     pub fn clear_messages(&mut self) {
         self.error_message = None;
         self.loading_message = None;

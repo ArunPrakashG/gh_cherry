@@ -1,6 +1,7 @@
 use crossterm::event::{Event, KeyEvent, MouseEvent};
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // This enum is for future TUI event handling
 pub enum AppEvent {
     Key(KeyEvent),
     Mouse(MouseEvent),

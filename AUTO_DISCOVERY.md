@@ -5,13 +5,15 @@ The auto-discovery feature has been successfully implemented to automatically fe
 ## What's New
 
 ### Automatic Organization Discovery
+
 - When `--owner` is not specified, the application fetches:
   - User's personal GitHub account
   - All organizations the user belongs to
 - Interactive selection when multiple options are available
 - Automatic selection when only one option exists
 
-### Automatic Repository Discovery  
+### Automatic Repository Discovery
+
 - When `--repo` is not specified, the application fetches:
   - All repositories accessible to the selected owner
   - Filters repositories by the selected owner/organization
@@ -21,6 +23,7 @@ The auto-discovery feature has been successfully implemented to automatically fe
   - Default branch information
 
 ### Enhanced User Experience
+
 - Clear prompts and numbered selection menus
 - Helpful descriptions for each option
 - Input validation with retry capability
@@ -29,23 +32,29 @@ The auto-discovery feature has been successfully implemented to automatically fe
 ## Usage Examples
 
 ### Basic Auto-Discovery
+
 ```bash
 gh_cherry
 ```
+
 This will trigger auto-discovery for both organizations and repositories.
 
 ### Partial Auto-Discovery
+
 ```bash
 gh_cherry --owner myorg
 ```
+
 This will use the specified owner but auto-discover repositories.
 
 ```bash
 gh_cherry --repo myrepo
 ```
+
 This will auto-discover organizations but use the specified repository.
 
 ### Configuration File Auto-Discovery
+
 ```toml
 [github]
 owner = ""  # Empty values trigger auto-discovery
@@ -55,11 +64,13 @@ repo = ""
 ## Technical Implementation
 
 ### New API Endpoints Used
+
 - `/user/orgs` - List organizations for authenticated user
-- `/user/repos` - List repositories for authenticated user  
+- `/user/repos` - List repositories for authenticated user
 - `/user` - Get authenticated user information
 
 ### New Functions Added
+
 - `GitHubClient::list_user_organizations()` - Fetch user organizations
 - `GitHubClient::list_user_repositories()` - Fetch user repositories
 - `GitHubClient::get_authenticated_user()` - Get user information
@@ -68,6 +79,7 @@ repo = ""
 - `Config::needs_auto_discovery()` - Check if auto-discovery is needed
 
 ### Configuration Changes
+
 - Updated `Config::validate()` to allow empty owner/repo
 - Added `Config::needs_auto_discovery()` method
 - Enhanced CLI help text to mention auto-discovery
@@ -83,6 +95,7 @@ repo = ""
 ## Authentication Required
 
 The auto-discovery feature requires GitHub authentication via:
+
 - GitHub CLI (`gh auth login`)
 - Personal Access Token in `GITHUB_TOKEN` environment variable
 

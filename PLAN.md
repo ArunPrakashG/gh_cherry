@@ -131,6 +131,7 @@ Create a Rust TUI application to assist with cherry-picking PRs to target branch
 - Application is now functional and ready for testing
 
 ### [2025-08-07] - Auto-Discovery Feature Completed
+
 - Successfully implemented automatic organization and repository discovery
 - Added interactive selection for multiple options with detailed information display
 - Enhanced user experience with clear prompts and validation
@@ -138,8 +139,9 @@ Create a Rust TUI application to assist with cherry-picking PRs to target branch
 - All auto-discovery related items marked as complete
 
 ### Latest Enhancement - Auto-Discovery Feature
+
 - [x] Add functionality to automatically fetch allowed organizations and repositories for authenticated user
-- [x] Implement GitHub API calls to `/user/orgs` and `/user/repos` endpoints  
+- [x] Implement GitHub API calls to `/user/orgs` and `/user/repos` endpoints
 - [x] Update configuration system to support auto-discovery mode
 - [x] Enhance CLI to gracefully handle missing owner/repo parameters
 - [x] Modify GitHubClient to include organization and repository discovery methods
@@ -181,6 +183,7 @@ Create a Rust TUI application to assist with cherry-picking PRs to target branch
 - Git repository state management
 
 ### Implementation Details
+
 - Modified GitHubClient to include organization and repository discovery methods
 - Updated Config validation to allow empty owner/repo when auto-discovery is enabled
 - Enhanced main.rs to trigger auto-discovery when necessary

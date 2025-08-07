@@ -134,6 +134,7 @@ When you run `gh_cherry` without specifying `--owner` and `--repo`, the applicat
 5. **Interactive Repository Selection**: Choose from available repositories with details like visibility and description
 
 Example auto-discovery session:
+
 ```
 $ gh_cherry
 No owner/repo specified, discovering available options...

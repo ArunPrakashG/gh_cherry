@@ -109,7 +109,7 @@ impl Config {
         // They will be populated later via GitHub API
         Ok(())
     }
-    
+
     pub fn needs_auto_discovery(&self) -> bool {
         self.github.owner.is_empty() || self.github.repo.is_empty()
     }
