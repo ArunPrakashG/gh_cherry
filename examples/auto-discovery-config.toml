@@ -1,0 +1,22 @@
+# Auto-Discovery Example Configuration
+# 
+# This configuration file demonstrates how to use the auto-discovery feature.
+# When owner and repo are left empty (or not specified), the application will
+# automatically discover available organizations and repositories.
+
+[github]
+# Leave empty for auto-discovery
+owner = ""
+repo = ""
+base_branch = "develop"
+target_branch = "main"
+
+[tags]
+sprint_pattern = "S\\d+"
+environment = "DEV"
+pending_tag = "pending cherrypick"
+completed_tag = "cherry picked"
+
+[ui]
+days_back = 28
+page_size = 20
