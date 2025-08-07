@@ -44,6 +44,10 @@ pub struct RepositoryInfo {
     pub description: String,
     pub default_branch: String,
     pub private: bool,
+    pub fork: bool,
+    pub stargazers_count: u32,
+    pub forks_count: u32,
+    pub language: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -151,7 +155,7 @@ impl GitHubClient {
     }
 
     async fn get_pr_commits(&self, pr_number: u64) -> Result<Vec<CommitInfo>> {
-        // Get the PR details first to get the commit range
+        // Get the PR details first
         let pr = self
             .octocrab
             .pulls(&self.config.github.owner, &self.config.github.repo)
@@ -159,41 +163,17 @@ impl GitHubClient {
             .await
             .context("Failed to fetch PR details")?;
 
-        // Get commits between base and head
-        let commits = self
-            .octocrab
-            .repos(&self.config.github.owner, &self.config.github.repo)
-            .list_commits()
-            .sha(&pr.head.sha)
-            .per_page(100)
-            .send()
-            .await
-            .context("Failed to fetch PR commits")?;
+        // For now, we'll just use the head commit of the PR
+        // This is typically what you want to cherry-pick
+        let commit_info = CommitInfo {
+            sha: pr.head.sha.clone(),
+            message: pr.title.unwrap_or_else(|| format!("PR #{}", pr_number)),
+            author: pr.user.map(|u| u.login).unwrap_or_else(|| "Unknown".to_string()),
+            date: pr.created_at.unwrap_or_else(|| Utc::now()),
+        };
 
-        let mut commit_infos = Vec::new();
-
-        // Convert to our commit info format
-        for commit in commits {
-            let commit_data = CommitInfo {
-                sha: commit.sha,
-                message: commit.commit.message,
-                author: commit
-                    .commit
-                    .author
-                    .as_ref()
-                    .map(|a| a.name.clone())
-                    .unwrap_or_else(|| "Unknown".to_string()),
-                date: commit
-                    .commit
-                    .author
-                    .as_ref()
-                    .and_then(|a| a.date)
-                    .unwrap_or_else(|| Utc::now()),
-            };
-            commit_infos.push(commit_data);
-        }
-
-        Ok(commit_infos)
+        tracing::info!("Using head commit {} for PR #{}", pr.head.sha, pr_number);
+        Ok(vec![commit_info])
     }
 
     fn pr_matches_criteria(&self, labels: &[String], sprint_regex: &Regex) -> bool {
@@ -309,6 +289,12 @@ impl GitHubClient {
                 description: repo.description.unwrap_or_default(),
                 default_branch: repo.default_branch.unwrap_or_else(|| "main".to_string()),
                 private: repo.private.unwrap_or(false),
+                fork: repo.fork.unwrap_or(false),
+                stargazers_count: repo.stargazers_count.unwrap_or(0),
+                forks_count: repo.forks_count.unwrap_or(0),
+                language: repo
+                    .language
+                    .and_then(|v| v.as_str().map(|s| s.to_string())),
             };
             repo_infos.push(repo_info);
         }

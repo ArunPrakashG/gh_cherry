@@ -105,7 +105,7 @@ impl App {
                 MainMenu::render(f, &self.state);
             }
             Screen::PrList => {
-                PrList::render(f, &self.state);
+                PrList::render(f, &self.state, &self.config);
             }
             Screen::Progress => {
                 ProgressView::render(f, &self.state);

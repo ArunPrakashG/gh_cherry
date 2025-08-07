@@ -1,7 +1,5 @@
 use anyhow::{Context, Result};
-use git2::{
-    CherrypickOptions, Oid, Repository, RepositoryState, Signature,
-};
+use git2::{CherrypickOptions, Oid, Repository, RepositoryState, Signature};
 use std::path::Path;
 
 pub struct GitOperations {
@@ -20,21 +18,24 @@ impl GitOperations {
     pub fn new<P: AsRef<Path>>(repo_path: P) -> Result<Self> {
         let repo = Repository::open(repo_path)
             .context("Failed to open Git repository. Are you in a Git repository?")?;
-        
+
         Ok(Self { repo })
     }
 
     /// Discovers the Git repository from the current directory
     pub fn discover() -> Result<Self> {
-        let repo = Repository::discover(".")
-            .context("No Git repository found. Please run this command from within a Git repository.")?;
-        
+        let repo = Repository::discover(".").context(
+            "No Git repository found. Please run this command from within a Git repository.",
+        )?;
+
         Ok(Self { repo })
     }
 
     /// Checks if the repository is in a clean state
     pub fn is_clean(&self) -> Result<bool> {
-        let statuses = self.repo.statuses(None)
+        let statuses = self
+            .repo
+            .statuses(None)
             .context("Failed to check repository status")?;
 
         Ok(statuses.is_empty())
@@ -42,12 +43,10 @@ impl GitOperations {
 
     /// Gets the current branch name
     pub fn current_branch(&self) -> Result<String> {
-        let head = self.repo.head()
-            .context("Failed to get HEAD reference")?;
-        
-        let branch_name = head.shorthand()
-            .context("Failed to get branch name")?;
-        
+        let head = self.repo.head().context("Failed to get HEAD reference")?;
+
+        let branch_name = head.shorthand().context("Failed to get branch name")?;
+
         Ok(branch_name.to_string())
     }
 
@@ -56,22 +55,28 @@ impl GitOperations {
         tracing::info!("Checking out branch: {}", branch_name);
 
         // Find the branch
-        let branch = self.repo.find_branch(branch_name, git2::BranchType::Local)
+        let branch = self
+            .repo
+            .find_branch(branch_name, git2::BranchType::Local)
             .or_else(|_| {
                 // Try to find remote branch and create local tracking branch
                 self.create_tracking_branch(branch_name)
             })
             .with_context(|| format!("Branch '{}' not found", branch_name))?;
 
-        let commit = branch.get().peel_to_commit()
+        let commit = branch
+            .get()
+            .peel_to_commit()
             .context("Failed to get commit for branch")?;
 
         // Checkout the branch
-        self.repo.checkout_tree(commit.as_object(), None)
+        self.repo
+            .checkout_tree(commit.as_object(), None)
             .context("Failed to checkout tree")?;
 
         // Update HEAD
-        self.repo.set_head(&format!("refs/heads/{}", branch_name))
+        self.repo
+            .set_head(&format!("refs/heads/{}", branch_name))
             .context("Failed to update HEAD")?;
 
         tracing::info!("Successfully checked out branch: {}", branch_name);
@@ -80,16 +85,21 @@ impl GitOperations {
 
     fn create_tracking_branch(&self, branch_name: &str) -> Result<git2::Branch<'_>, git2::Error> {
         // Try to find remote branch (usually origin/branch_name)
-        let remote_branch = self.repo.find_branch(&format!("origin/{}", branch_name), git2::BranchType::Remote)?;
+        let remote_branch = self
+            .repo
+            .find_branch(&format!("origin/{}", branch_name), git2::BranchType::Remote)?;
         let remote_commit = remote_branch.get().peel_to_commit()?;
 
         // Create local tracking branch
         let local_branch = self.repo.branch(branch_name, &remote_commit, false)?;
-        
+
         // Set up tracking
         let mut branch_config = self.repo.config()?;
         branch_config.set_str(&format!("branch.{}.remote", branch_name), "origin")?;
-        branch_config.set_str(&format!("branch.{}.merge", branch_name), &format!("refs/heads/{}", branch_name))?;
+        branch_config.set_str(
+            &format!("branch.{}.merge", branch_name),
+            &format!("refs/heads/{}", branch_name),
+        )?;
 
         Ok(local_branch)
     }
@@ -98,15 +108,21 @@ impl GitOperations {
     pub fn cherry_pick(&self, commit_sha: &str) -> Result<CherrypickResult> {
         tracing::info!("Cherry-picking commit: {}", commit_sha);
 
+        // First, validate if we're in the correct repository
+        self.validate_repository_context(commit_sha)?;
+
         let oid = Oid::from_str(commit_sha)
             .with_context(|| format!("Invalid commit SHA: {}", commit_sha))?;
 
-        let commit = self.repo.find_commit(oid)
+        let commit = self
+            .repo
+            .find_commit(oid)
             .with_context(|| format!("Commit not found: {}", commit_sha))?;
 
         // Perform the cherry-pick
         let mut opts = CherrypickOptions::new();
-        self.repo.cherrypick(&commit, Some(&mut opts))
+        self.repo
+            .cherrypick(&commit, Some(&mut opts))
             .context("Failed to cherry-pick commit")?;
 
         // Check repository state after cherry-pick
@@ -128,7 +144,7 @@ impl GitOperations {
                 )?;
 
                 tracing::info!("Cherry-pick successful, created commit: {}", commit_id);
-                
+
                 Ok(CherrypickResult {
                     success: true,
                     conflicts: Vec::new(),
@@ -139,7 +155,7 @@ impl GitOperations {
                 // There are conflicts
                 let conflicts = self.get_conflicts()?;
                 tracing::warn!("Cherry-pick has conflicts: {:?}", conflicts);
-                
+
                 Ok(CherrypickResult {
                     success: false,
                     conflicts,
@@ -157,7 +173,8 @@ impl GitOperations {
         let mut conflicts = Vec::new();
 
         if index.has_conflicts() {
-            let conflict_iter = index.conflicts()
+            let conflict_iter = index
+                .conflicts()
                 .context("Failed to get conflicts iterator")?;
 
             for conflict in conflict_iter {
@@ -206,20 +223,25 @@ impl GitOperations {
         // Clean up cherry-pick state
         self.repo.cleanup_state()?;
 
-        tracing::info!("Cherry-pick continued successfully, created commit: {}", commit_id);
+        tracing::info!(
+            "Cherry-pick continued successfully, created commit: {}",
+            commit_id
+        );
         Ok(commit_id.to_string())
     }
 
     /// Aborts the current cherry-pick operation
     pub fn abort_cherry_pick(&self) -> Result<()> {
         tracing::info!("Aborting cherry-pick");
-        
-        self.repo.cleanup_state()
+
+        self.repo
+            .cleanup_state()
             .context("Failed to cleanup cherry-pick state")?;
-        
+
         // Reset to HEAD
         let head = self.repo.head()?.peel_to_commit()?;
-        self.repo.reset(head.as_object(), git2::ResetType::Hard, None)
+        self.repo
+            .reset(head.as_object(), git2::ResetType::Hard, None)
             .context("Failed to reset to HEAD")?;
 
         tracing::info!("Cherry-pick aborted successfully");
@@ -228,26 +250,99 @@ impl GitOperations {
 
     fn get_signature(&self) -> Result<Signature<'_>> {
         // Try to get signature from git config
-        let config = self.repo.config()
-            .context("Failed to get git config")?;
+        let config = self.repo.config().context("Failed to get git config")?;
 
-        let name = config.get_string("user.name")
+        let name = config
+            .get_string("user.name")
             .context("Git user.name not configured")?;
-        let email = config.get_string("user.email")
+        let email = config
+            .get_string("user.email")
             .context("Git user.email not configured")?;
 
-        Signature::now(&name, &email)
-            .context("Failed to create git signature")
+        Signature::now(&name, &email).context("Failed to create git signature")
+    }
+
+    /// Validates if we're in the correct repository context for the commit
+    fn validate_repository_context(&self, commit_sha: &str) -> Result<()> {
+        // Check if the commit exists locally first
+        let oid = Oid::from_str(commit_sha)
+            .with_context(|| format!("Invalid commit SHA: {}", commit_sha))?;
+
+        if self.repo.find_commit(oid).is_ok() {
+            return Ok(()); // Commit exists, we're good
+        }
+
+        // Get the current repository's remote URL
+        let remote_url = match self.get_repository_remote_url() {
+            Ok(url) => url,
+            Err(_) => {
+                // No remote configured
+                anyhow::bail!(
+                    "⚠️  Repository Mismatch Warning ⚠️\n\n\
+                    The commit {} was not found in the current repository.\n\
+                    This repository has no remote configured.\n\n\
+                    Please ensure you are in the correct Git repository that contains this commit.\n\
+                    \n\
+                    Current directory: {}\n\
+                    Expected: A repository containing commit {}",
+                    commit_sha,
+                    std::env::current_dir()
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_else(|_| "unknown".to_string()),
+                    &commit_sha[..8]
+                );
+            }
+        };
+
+        // Show detailed warning
+        anyhow::bail!(
+            "⚠️  Repository Mismatch Warning ⚠️\n\n\
+            The commit {} was not found in the current repository.\n\
+            This likely means you are in a different repository than expected.\n\n\
+            Current repository: {}\n\
+            Current directory: {}\n\
+            Missing commit: {}\n\n\
+            Please:\n\
+            1. Navigate to the correct repository directory\n\
+            2. Ensure the repository contains the commit you're trying to cherry-pick\n\
+            3. Run 'git log --oneline | grep {}' to verify the commit exists\n\n\
+            Operation cancelled for safety.",
+            commit_sha,
+            remote_url,
+            std::env::current_dir()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| "unknown".to_string()),
+            commit_sha,
+            &commit_sha[..8]
+        );
+    }
+
+    /// Gets the remote URL of the repository
+    fn get_repository_remote_url(&self) -> Result<String> {
+        let remote = self
+            .repo
+            .find_remote("origin")
+            .context("No 'origin' remote found")?;
+
+        let url = remote
+            .url()
+            .context("Remote URL not available")?
+            .to_string();
+
+        Ok(url)
     }
 
     /// Fetches latest changes from remote
     pub fn fetch(&self) -> Result<()> {
         tracing::info!("Fetching latest changes from remote");
 
-        let mut remote = self.repo.find_remote("origin")
+        let mut remote = self
+            .repo
+            .find_remote("origin")
             .context("Failed to find 'origin' remote")?;
 
-        remote.fetch(&[] as &[&str], None, None)
+        remote
+            .fetch(&[] as &[&str], None, None)
             .context("Failed to fetch from remote")?;
 
         tracing::info!("Successfully fetched changes from remote");

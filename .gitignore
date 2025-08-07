@@ -13,3 +13,4 @@ Thumbs.db
 
 # Application specific
 config.toml
+*.env

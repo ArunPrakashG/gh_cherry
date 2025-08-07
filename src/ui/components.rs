@@ -6,6 +6,7 @@ use ratatui::{
 };
 
 use crate::ui::state::AppState;
+use crate::config::Config;
 
 pub struct MainMenu;
 
@@ -56,7 +57,7 @@ impl MainMenu {
 pub struct PrList;
 
 impl PrList {
-    pub fn render(f: &mut Frame, state: &AppState) {
+    pub fn render(f: &mut Frame, state: &AppState, config: &Config) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
@@ -80,13 +81,35 @@ impl PrList {
 
         // PR List
         if state.prs.is_empty() {
-            let empty_message = Paragraph::new(
-                "No PRs found matching the criteria.\n\nPress 'r' to refresh or 'Esc' to go back.",
-            )
-            .style(Style::default().fg(Color::Gray))
-            .alignment(Alignment::Center)
-            .wrap(Wrap { trim: true })
-            .block(Block::default().borders(Borders::ALL));
+            let criteria_info = format!(
+                "No PRs found matching the criteria.\n\n\
+                📋 Search Criteria:\n\
+                • Repository: {}/{}\n\
+                • Base Branch: {}\n\
+                • Environment: {}\n\
+                • Pending Tag: \"{}\"\n\
+                • Days Back: {}\n\n\
+                💡 Tips:\n\
+                • Ensure PRs are tagged with \"{}\"\n\
+                • Check if PRs are merged to \"{}\" branch\n\
+                • Verify the tag pattern matches: {}\n\n\
+                🔄 Press 'r' to refresh or 'Esc' to go back.",
+                config.github.owner,
+                config.github.repo,
+                config.github.base_branch,
+                config.tags.environment,
+                config.tags.pending_tag,
+                config.ui.days_back,
+                config.tags.pending_tag,
+                config.github.base_branch,
+                config.tags.sprint_pattern
+            );
+            
+            let empty_message = Paragraph::new(criteria_info)
+                .style(Style::default().fg(Color::Gray))
+                .alignment(Alignment::Left)
+                .wrap(Wrap { trim: true })
+                .block(Block::default().borders(Borders::ALL).title(" No PRs Found "));
             f.render_widget(empty_message, chunks[1]);
         } else {
             let items: Vec<ListItem> = state
