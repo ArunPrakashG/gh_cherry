@@ -7,7 +7,8 @@ A Terminal User Interface (TUI) application built in Rust to assist with cherry-
 ## Features
 
 - 🎯 **Smart PR Detection**: Automatically finds PRs with specific tags (e.g., "S28 DEV pending cherrypick")
-- 🔐 **GitHub Authentication**: Seamlessly integrates with GitHub CLI auth or supports Personal Access Tokens
+- � **Auto-Discovery**: Automatically discovers available organizations and repositories when not specified
+- �🔐 **GitHub Authentication**: Seamlessly integrates with GitHub CLI auth or supports Personal Access Tokens
 - 🍒 **Interactive Cherry-Picking**: Select and cherry-pick individual PRs or commits with visual feedback
 - ⚡ **Conflict Resolution**: Graceful handling of merge conflicts with interactive resolution
 - 🏷️ **Automatic Tag Management**: Updates PR tags from "pending cherrypick" to "cherry picked" after successful operations
@@ -16,6 +17,7 @@ A Terminal User Interface (TUI) application built in Rust to assist with cherry-
 ## Use Case
 
 This tool is designed for development teams using a Git workflow where:
+
 - Developers create PRs to a `develop` branch
 - PRs are tagged with sprint identifiers (e.g., "S28") and environment tags ("DEV")
 - PRs include a "pending cherrypick" tag when they need to be cherry-picked to release branches
@@ -50,6 +52,7 @@ cargo install gh_cherry
 ### Authentication
 
 #### Option 1: GitHub CLI (Recommended)
+
 ```bash
 # Install GitHub CLI if not already installed
 # On Windows: winget install GitHub.cli
@@ -61,11 +64,13 @@ gh auth login
 ```
 
 #### Option 2: Personal Access Token
+
 1. Create a Personal Access Token at https://github.com/settings/tokens
 2. Grant the following permissions:
    - `repo` (Full control of private repositories)
    - `read:org` (Read org and team membership)
 3. Set the token as an environment variable:
+
 ```bash
 export GITHUB_TOKEN=your_token_here
 ```
@@ -107,14 +112,48 @@ page_size = 20
 ### Basic Usage
 
 ```bash
-# Start the TUI application
+# Start the TUI application with auto-discovery
+# Will prompt you to select from available organizations and repositories
 gh_cherry
 
-# Or specify a different repository
+# Or specify a specific repository
 gh_cherry --owner myorg --repo myrepo
 
 # Or specify a config file
 gh_cherry --config /path/to/config.toml
+```
+
+### Auto-Discovery Feature
+
+When you run `gh_cherry` without specifying `--owner` and `--repo`, the application will:
+
+1. **Authenticate with GitHub** using GitHub CLI or environment token
+2. **Discover Organizations**: List your personal account and organizations you belong to
+3. **Interactive Selection**: If multiple options are available, you'll be prompted to choose
+4. **Discover Repositories**: List repositories accessible under the selected owner
+5. **Interactive Repository Selection**: Choose from available repositories with details like visibility and description
+
+Example auto-discovery session:
+```
+$ gh_cherry
+No owner/repo specified, discovering available options...
+Authenticated as: John Doe (johndoe)
+
+Multiple organizations available:
+0. johndoe (Your personal account)
+1. mycompany - Main company organization
+2. opensourceproject - Open source projects
+
+Select organization (0-2): 1
+Selected owner: mycompany
+
+Multiple repositories available:
+1. webapp (Private) - Main web application
+2. api-server (Private) - REST API backend
+3. docs (Public) - Documentation site
+
+Select repository (1-3): 1
+Selected repository: webapp
 ```
 
 ### Command Line Options
@@ -123,8 +162,8 @@ gh_cherry --config /path/to/config.toml
 gh_cherry [OPTIONS]
 
 Options:
-    -o, --owner <OWNER>          GitHub repository owner
-    -r, --repo <REPO>            GitHub repository name
+    -o, --owner <OWNER>          GitHub repository owner (auto-discovered if not provided)
+    -r, --repo <REPO>            GitHub repository name (auto-discovered if not provided)
     -c, --config <CONFIG>        Path to configuration file
     -b, --base-branch <BRANCH>   Base branch to cherry-pick from
     -t, --target-branch <BRANCH> Target branch to cherry-pick to
@@ -231,33 +270,41 @@ cargo test test_name
 ### Common Issues
 
 #### Authentication Errors
+
 ```
 Error: GitHub authentication failed
 ```
+
 - Ensure GitHub CLI is installed and authenticated: `gh auth status`
 - Or set a valid Personal Access Token: `export GITHUB_TOKEN=your_token`
 - Check token permissions include `repo` and `read:org`
 
 #### Repository Not Found
+
 ```
 Error: Repository not found or access denied
 ```
+
 - Verify repository owner and name are correct
 - Ensure you have access to the repository
 - Check if repository is private and authentication is properly configured
 
 #### Git Operations Failed
+
 ```
 Error: Failed to perform git operation
 ```
+
 - Ensure you're running from within a Git repository
 - Verify you have write permissions to the repository
 - Check if there are uncommitted changes that need to be stashed
 
 #### No PRs Found
+
 ```
 No PRs found matching criteria
 ```
+
 - Verify tag patterns in configuration match your repository's tagging scheme
 - Check the date range (increase `days_back` in config)
 - Ensure PRs exist on the specified base branch

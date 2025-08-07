@@ -23,22 +23,19 @@ impl MainMenu {
 
         // Title
         let title = Paragraph::new("🍒 GitHub Cherry-Pick TUI")
-            .style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center)
             .block(Block::default().borders(Borders::ALL));
         f.render_widget(title, chunks[0]);
 
         // Menu items
-        let menu_items = vec![
-            "1. View and Cherry-pick PRs",
-            "r. Refresh data",
-            "q. Quit",
-        ];
+        let menu_items = vec!["1. View and Cherry-pick PRs", "r. Refresh data", "q. Quit"];
 
-        let menu: Vec<ListItem> = menu_items
-            .iter()
-            .map(|item| ListItem::new(*item))
-            .collect();
+        let menu: Vec<ListItem> = menu_items.iter().map(|item| ListItem::new(*item)).collect();
 
         let menu_list = List::new(menu)
             .block(Block::default().title("Menu").borders(Borders::ALL))
@@ -72,18 +69,24 @@ impl PrList {
 
         // Title
         let title = Paragraph::new(format!("📋 Pull Requests ({} found)", state.prs.len()))
-            .style(Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center)
             .block(Block::default().borders(Borders::ALL));
         f.render_widget(title, chunks[0]);
 
         // PR List
         if state.prs.is_empty() {
-            let empty_message = Paragraph::new("No PRs found matching the criteria.\n\nPress 'r' to refresh or 'Esc' to go back.")
-                .style(Style::default().fg(Color::Gray))
-                .alignment(Alignment::Center)
-                .wrap(Wrap { trim: true })
-                .block(Block::default().borders(Borders::ALL));
+            let empty_message = Paragraph::new(
+                "No PRs found matching the criteria.\n\nPress 'r' to refresh or 'Esc' to go back.",
+            )
+            .style(Style::default().fg(Color::Gray))
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: true })
+            .block(Block::default().borders(Borders::ALL));
             f.render_widget(empty_message, chunks[1]);
         } else {
             let items: Vec<ListItem> = state
@@ -123,10 +126,11 @@ impl PrList {
         }
 
         // Instructions
-        let instructions = Paragraph::new("↑/↓: Navigate | Enter: Cherry-pick | r: Refresh | Esc: Back | q: Quit")
-            .style(Style::default().fg(Color::Gray))
-            .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
+        let instructions =
+            Paragraph::new("↑/↓: Navigate | Enter: Cherry-pick | r: Refresh | Esc: Back | q: Quit")
+                .style(Style::default().fg(Color::Gray))
+                .alignment(Alignment::Center)
+                .block(Block::default().borders(Borders::ALL));
         f.render_widget(instructions, chunks[2]);
 
         // Show success message if any
@@ -150,7 +154,11 @@ impl PrList {
         f.render_widget(popup, popup_area);
     }
 
-    fn centered_rect(percent_x: u16, percent_y: u16, r: ratatui::layout::Rect) -> ratatui::layout::Rect {
+    fn centered_rect(
+        percent_x: u16,
+        percent_y: u16,
+        r: ratatui::layout::Rect,
+    ) -> ratatui::layout::Rect {
         let popup_layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -187,7 +195,11 @@ impl ProgressView {
 
         // Title
         let title = Paragraph::new("⏳ Processing...")
-            .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+            .style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )
             .alignment(Alignment::Center)
             .block(Block::default().borders(Borders::ALL));
         f.render_widget(title, chunks[0]);
@@ -201,11 +213,8 @@ impl ProgressView {
         f.render_widget(progress, chunks[1]);
 
         // Status message
-        let message = state
-            .loading_message
-            .as_deref()
-            .unwrap_or("Please wait...");
-        
+        let message = state.loading_message.as_deref().unwrap_or("Please wait...");
+
         let status = Paragraph::new(message)
             .style(Style::default().fg(Color::White))
             .alignment(Alignment::Center)

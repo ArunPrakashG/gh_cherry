@@ -29,6 +29,30 @@ pub struct CommitInfo {
     pub date: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrganizationInfo {
+    pub login: String,
+    pub name: String,
+    pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepositoryInfo {
+    pub name: String,
+    pub full_name: String,
+    pub owner: String,
+    pub description: String,
+    pub default_branch: String,
+    pub private: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserInfo {
+    pub login: String,
+    pub name: String,
+    pub email: String,
+}
+
 pub struct GitHubClient {
     octocrab: Octocrab,
     config: Config,
@@ -38,7 +62,7 @@ impl GitHubClient {
     pub async fn new(config: Config) -> Result<Self> {
         let auth_method = GitHubAuth::authenticate().await?;
         let token = GitHubAuth::get_token(&auth_method);
-        
+
         let octocrab = Octocrab::builder()
             .personal_token(token.to_string())
             .build()
@@ -50,7 +74,7 @@ impl GitHubClient {
     /// Lists PRs from the base branch that match the filtering criteria
     pub async fn list_matching_prs(&self) -> Result<Vec<PrInfo>> {
         let since = Utc::now() - chrono::Duration::days(self.config.ui.days_back as i64);
-        
+
         tracing::info!(
             "Fetching PRs from {}/{} on branch {} since {}",
             self.config.github.owner,
@@ -73,8 +97,8 @@ impl GitHubClient {
             .context("Failed to fetch pull requests")?;
 
         let mut matching_prs = Vec::new();
-        let sprint_regex = Regex::new(&self.config.tags.sprint_pattern)
-            .context("Invalid sprint pattern regex")?;
+        let sprint_regex =
+            Regex::new(&self.config.tags.sprint_pattern).context("Invalid sprint pattern regex")?;
 
         for pr in pulls {
             // Filter by date
@@ -85,11 +109,11 @@ impl GitHubClient {
 
             // Get labels for the PR
             let labels = self.get_pr_labels(pr.number).await?;
-            
+
             // Check if PR has the required tags
             if self.pr_matches_criteria(&labels, &sprint_regex) {
                 let commits = self.get_pr_commits(pr.number).await?;
-                
+
                 let pr_info = PrInfo {
                     number: pr.number,
                     title: pr.title.unwrap_or_default(),
@@ -102,7 +126,7 @@ impl GitHubClient {
                     base_ref: pr.base.ref_field,
                     head_ref: pr.head.ref_field,
                 };
-                
+
                 matching_prs.push(pr_info);
             }
         }
@@ -147,17 +171,21 @@ impl GitHubClient {
             .context("Failed to fetch PR commits")?;
 
         let mut commit_infos = Vec::new();
-        
+
         // Convert to our commit info format
         for commit in commits {
             let commit_data = CommitInfo {
                 sha: commit.sha,
                 message: commit.commit.message,
-                author: commit.commit.author
+                author: commit
+                    .commit
+                    .author
                     .as_ref()
                     .map(|a| a.name.clone())
                     .unwrap_or_else(|| "Unknown".to_string()),
-                date: commit.commit.author
+                date: commit
+                    .commit
+                    .author
                     .as_ref()
                     .and_then(|a| a.date)
                     .unwrap_or_else(|| Utc::now()),
@@ -170,8 +198,12 @@ impl GitHubClient {
 
     fn pr_matches_criteria(&self, labels: &[String], sprint_regex: &Regex) -> bool {
         let has_sprint_tag = labels.iter().any(|label| sprint_regex.is_match(label));
-        let has_env_tag = labels.iter().any(|label| label == &self.config.tags.environment);
-        let has_pending_tag = labels.iter().any(|label| label == &self.config.tags.pending_tag);
+        let has_env_tag = labels
+            .iter()
+            .any(|label| label == &self.config.tags.environment);
+        let has_pending_tag = labels
+            .iter()
+            .any(|label| label == &self.config.tags.pending_tag);
 
         has_sprint_tag && has_env_tag && has_pending_tag
     }
@@ -226,5 +258,82 @@ impl GitHubClient {
             .context("Failed to add cherry-pick comment")?;
 
         Ok(())
+    }
+
+    /// Fetches user organizations that the authenticated user belongs to
+    pub async fn list_user_organizations(&self) -> Result<Vec<OrganizationInfo>> {
+        tracing::info!("Fetching user organizations");
+
+        let orgs = self
+            .octocrab
+            .current()
+            .list_org_memberships_for_authenticated_user()
+            .per_page(100)
+            .send()
+            .await
+            .context("Failed to fetch user organizations")?;
+
+        let mut org_infos = Vec::new();
+        for org in orgs {
+            let org_info = OrganizationInfo {
+                login: org.organization.login,
+                name: org.organization.name.unwrap_or_default(),
+                description: org.organization.description.unwrap_or_default(),
+            };
+            org_infos.push(org_info);
+        }
+
+        tracing::info!("Found {} organizations", org_infos.len());
+        Ok(org_infos)
+    }
+
+    /// Fetches repositories accessible to the authenticated user
+    pub async fn list_user_repositories(&self) -> Result<Vec<RepositoryInfo>> {
+        tracing::info!("Fetching user repositories");
+
+        let repos = self
+            .octocrab
+            .current()
+            .list_repos_for_authenticated_user()
+            .per_page(100)
+            .send()
+            .await
+            .context("Failed to fetch user repositories")?;
+
+        let mut repo_infos = Vec::new();
+        for repo in repos {
+            let repo_info = RepositoryInfo {
+                name: repo.name,
+                full_name: repo.full_name.unwrap_or_default(),
+                owner: repo.owner.map(|o| o.login).unwrap_or_default(),
+                description: repo.description.unwrap_or_default(),
+                default_branch: repo.default_branch.unwrap_or_else(|| "main".to_string()),
+                private: repo.private.unwrap_or(false),
+            };
+            repo_infos.push(repo_info);
+        }
+
+        tracing::info!("Found {} repositories", repo_infos.len());
+        Ok(repo_infos)
+    }
+
+    /// Gets information about the authenticated user
+    pub async fn get_authenticated_user(&self) -> Result<UserInfo> {
+        tracing::info!("Fetching authenticated user information");
+
+        let user = self
+            .octocrab
+            .current()
+            .user()
+            .await
+            .context("Failed to fetch authenticated user")?;
+
+        let user_info = UserInfo {
+            login: user.login,
+            name: user.name.unwrap_or_default(),
+            email: user.email.unwrap_or_default(),
+        };
+
+        Ok(user_info)
     }
 }

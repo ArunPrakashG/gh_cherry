@@ -105,12 +105,12 @@ impl Config {
     }
 
     pub fn validate(&self) -> Result<()> {
-        if self.github.owner.is_empty() {
-            anyhow::bail!("GitHub owner is required");
-        }
-        if self.github.repo.is_empty() {
-            anyhow::bail!("GitHub repository name is required");
-        }
+        // Allow empty owner/repo for auto-discovery mode
+        // They will be populated later via GitHub API
         Ok(())
+    }
+    
+    pub fn needs_auto_discovery(&self) -> bool {
+        self.github.owner.is_empty() || self.github.repo.is_empty()
     }
 }

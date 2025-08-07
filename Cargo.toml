@@ -1,11 +1,11 @@
 [package]
 name = "gh_cherry"
 version = "0.1.0"
-edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
+edition = "2024"
+authors = ["ArunPrakashG <arun.prakash.456789@gmail.com>"]
 description = "A TUI application for cherry-picking GitHub PRs to target branches"
 license = "MIT"
-repository = "https://github.com/yourusername/gh_cherry"
+repository = "https://github.com/ArunPrakashG/gh_cherry"
 keywords = ["github", "git", "cherry-pick", "tui", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 
