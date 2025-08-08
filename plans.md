@@ -37,6 +37,8 @@ We need a structured plan and initial test coverage for the gh_cherry TUI app (R
 - [x] Document how to run tests
 - [x] Add Windows setup script and docs
 - [x] Release workflow validated for tag pushes and manual dispatch
+      // New: UI polish
+- [x] Minimal, non-boxy UI prompts (" >> ") and inline filter for PR list
 
 ## Progress Log
 
@@ -67,6 +69,12 @@ Outlined scope, quick wins, and initial test targets.
 - Rewrote README with clearer structure, emojis, correct repo links, and a concise CI section.
 - Added `.github/workflows/release.yml` building assets for Windows, Linux (Ubuntu), macOS (x86_64 and ARM64) and attaching them to releases via `softprops/action-gh-release`.
 - Artifacts include the binary plus setup scripts and README.
+
+### [2025-08-08] - Minimal UI prompts and inline filter
+
+- Reworked PR list screen to a cleaner header + prompt bar + status line; removed popup boxes.
+- Added inline "f" filter with a minimal " >> " prompt and live filtering by #, title, or author.
+- Simplified main menu to a concise text prompt; kept controls discoverable via status line.
 
 ## Notes and Observations
 

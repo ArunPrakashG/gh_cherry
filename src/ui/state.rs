@@ -13,6 +13,13 @@ pub struct AppState {
     pub current_screen: Screen,
     pub prs: Vec<PrInfo>,
     pub pr_list_state: ListState,
+    // Inline prompt/input mode (minimal, no boxes)
+    pub input_active: bool,
+    pub input_title: String,
+    pub input_placeholder: String,
+    pub input_buffer: String,
+    pub filter_query: Option<String>,
+    pub display_indices: Vec<usize>,
     pub error_message: Option<String>,
     pub loading_message: Option<String>,
     pub success_message: Option<String>,
@@ -130,6 +137,12 @@ impl AppState {
             current_screen: Screen::MainMenu,
             prs: Vec::new(),
             pr_list_state: ListState::new(),
+            input_active: false,
+            input_title: String::new(),
+            input_placeholder: String::new(),
+            input_buffer: String::new(),
+            filter_query: None,
+            display_indices: Vec::new(),
             error_message: None,
             loading_message: None,
             success_message: None,
@@ -138,7 +151,7 @@ impl AppState {
 
     pub fn set_prs(&mut self, prs: Vec<PrInfo>) {
         self.prs = prs;
-        self.pr_list_state.set_items_count(self.prs.len());
+        self.recompute_display_indices();
         self.loading_message = None;
         self.error_message = None;
     }
@@ -166,5 +179,51 @@ impl AppState {
         self.error_message = None;
         self.loading_message = None;
         self.success_message = None;
+    }
+
+    // Prompt helpers
+    pub fn start_prompt(&mut self, title: &str, placeholder: &str, initial: &str) {
+        self.input_active = true;
+        self.input_title = title.to_string();
+        self.input_placeholder = placeholder.to_string();
+        self.input_buffer = initial.to_string();
+    }
+
+    pub fn cancel_prompt(&mut self) {
+        self.input_active = false;
+        self.input_title.clear();
+        self.input_placeholder.clear();
+        self.input_buffer.clear();
+    }
+
+    pub fn confirm_prompt(&mut self) -> String {
+        let res = self.input_buffer.trim().to_string();
+        self.cancel_prompt();
+        res
+    }
+
+    pub fn set_filter_query(&mut self, q: Option<String>) {
+        self.filter_query = q.filter(|s| !s.trim().is_empty());
+        self.recompute_display_indices();
+    }
+
+    pub fn recompute_display_indices(&mut self) {
+        self.display_indices.clear();
+        if let Some(q) = &self.filter_query {
+            let ql = q.to_lowercase();
+            for (i, pr) in self.prs.iter().enumerate() {
+                let n = pr.number.to_string();
+                if pr.title.to_lowercase().contains(&ql)
+                    || pr.author.to_lowercase().contains(&ql)
+                    || n.contains(&ql)
+                {
+                    self.display_indices.push(i);
+                }
+            }
+        } else {
+            self.display_indices.extend(0..self.prs.len());
+        }
+        self.pr_list_state
+            .set_items_count(self.display_indices.len());
     }
 }

@@ -1,7 +1,8 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Clear, Gauge, List, ListItem, Paragraph, Wrap},
+    widgets::{Gauge, List, ListItem, Paragraph, Wrap},
+    text::{Line, Span},
     Frame,
 };
 
@@ -23,7 +24,7 @@ impl MainMenu {
             .split(f.area());
 
         // Title
-        let title = Paragraph::new("🍒 GitHub Cherry-Pick TUI")
+        let title = Paragraph::new("🍒 GitHub Cherry-Pick")
             .style(
                 Style::default()
                     .fg(Color::Green)
@@ -32,16 +33,12 @@ impl MainMenu {
             .alignment(Alignment::Center);
         f.render_widget(title, chunks[0]);
 
-        // Menu items
-    let menu_items = ["1. View and Cherry-pick PRs", "r. Refresh data", "q. Quit"];
-
-        let menu: Vec<ListItem> = menu_items.iter().map(|item| ListItem::new(*item)).collect();
-
-        let menu_list = List::new(menu)
+        // Minimal prompt-like menu (no boxes)
+        let menu_text = ">> Press Enter to view PRs  •  r: Refresh  •  q: Quit";
+        let menu_para = Paragraph::new(menu_text)
             .style(Style::default().fg(Color::White))
-            .highlight_style(Style::default().bg(Color::Yellow).fg(Color::Black));
-
-        f.render_widget(menu_list, chunks[1]);
+            .alignment(Alignment::Center);
+        f.render_widget(menu_para, chunks[1]);
 
         // Instructions
         let instructions = Paragraph::new("Use numbers to select options, 'q' to quit")
@@ -55,18 +52,24 @@ pub struct PrList;
 
 impl PrList {
     pub fn render(f: &mut Frame, state: &AppState, config: &Config) {
-        let chunks = Layout::default()
+    let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
             .constraints([
-                Constraint::Length(3),
-                Constraint::Min(10),
-                Constraint::Length(3),
+        Constraint::Length(1),  // header
+        Constraint::Length(1),  // prompt bar
+        Constraint::Min(8),     // list
+        Constraint::Length(1),  // status/instructions
             ])
             .split(f.area());
 
         // Title
-        let title = Paragraph::new(format!("📋 Pull Requests ({} found)", state.prs.len()))
+        let total = state.prs.len();
+        let shown = state.display_indices.len();
+        let title = Paragraph::new(format!(
+                "📋 Pull Requests  —  showing {} of {}",
+                shown, total
+            ))
             .style(
                 Style::default()
                     .fg(Color::Blue)
@@ -75,8 +78,40 @@ impl PrList {
             .alignment(Alignment::Center);
         f.render_widget(title, chunks[0]);
 
+        // Inline prompt bar (minimal, no boxes)
+        let prompt_line = if state.input_active {
+            let input = if state.input_buffer.is_empty() {
+                Line::from(vec![
+                    Span::styled(">> ", Style::default().fg(Color::Yellow)),
+                    Span::styled(
+                        state.input_placeholder.as_str(),
+                        Style::default().fg(Color::DarkGray).add_modifier(Modifier::ITALIC),
+                    ),
+                ])
+            } else {
+                Line::from(vec![
+                    Span::styled(">> ", Style::default().fg(Color::Yellow)),
+                    Span::raw(state.input_buffer.clone()),
+                ])
+            };
+            Paragraph::new(vec![
+                Line::from(Span::styled(state.input_title.clone(), Style::default().fg(Color::Cyan))),
+                input,
+            ])
+        } else {
+            let hint = match &state.filter_query {
+                Some(q) => format!("f: Filter (active: '{}')  •  Enter: Cherry-pick  •  Esc: Back", q),
+                None => "f: Filter  •  Enter: Cherry-pick  •  Esc: Back".to_string(),
+            };
+            Paragraph::new(Line::from(vec![
+                Span::styled(">> ", Style::default().fg(Color::Yellow)),
+                Span::raw(hint),
+            ]))
+        };
+        f.render_widget(prompt_line, chunks[1]);
+
         // PR List
-        if state.prs.is_empty() {
+    if shown == 0 {
             let criteria_info = format!(
                 "No PRs found matching the criteria.\n\n\
                 📋 Search Criteria:\n\
@@ -105,12 +140,13 @@ impl PrList {
                 .style(Style::default().fg(Color::Gray))
                 .alignment(Alignment::Left)
                 .wrap(Wrap { trim: true });
-            f.render_widget(empty_message, chunks[1]);
+            f.render_widget(empty_message, chunks[2]);
         } else {
             let items: Vec<ListItem> = state
-                .prs
+                .display_indices
                 .iter()
-                .map(|pr| {
+                .map(|&idx| {
+                    let pr = &state.prs[idx];
                     let style = if pr.labels.contains(&"cherry picked".to_string()) {
                         Style::default().fg(Color::Green)
                     } else {
@@ -139,54 +175,22 @@ impl PrList {
 
             let mut list_state = ratatui::widgets::ListState::default();
             list_state.select(state.pr_list_state.selected());
-            f.render_stateful_widget(list, chunks[1], &mut list_state);
+            f.render_stateful_widget(list, chunks[2], &mut list_state);
         }
 
-        // Instructions
-        let instructions =
-            Paragraph::new("↑/↓: Navigate | Enter: Cherry-pick | r: Refresh | Esc: Back | q: Quit")
-                .style(Style::default().fg(Color::Gray))
-                .alignment(Alignment::Center);
-        f.render_widget(instructions, chunks[2]);
-
-        // Show success message if any
+    // Instructions
+    let mut status = String::new();
         if let Some(message) = &state.success_message {
-            Self::render_popup(f, message, Color::Green);
+            status.push_str(message);
+            status.push_str("   •   ");
         }
-    }
+        status.push_str("↑/↓ Navigate  •  Enter Cherry-pick  •  r Refresh  •  f Filter  •  Esc Back  •  q Quit");
+        let instructions = Paragraph::new(status)
+            .style(Style::default().fg(Color::Gray))
+            .alignment(Alignment::Center);
+        f.render_widget(instructions, chunks[3]);
 
-    fn render_popup(f: &mut Frame, message: &str, color: Color) {
-        let popup_area = Self::centered_rect(60, 20, f.area());
-        f.render_widget(Clear, popup_area);
-        let popup = Paragraph::new(message)
-            .style(Style::default().fg(color))
-            .alignment(Alignment::Center)
-            .wrap(Wrap { trim: true });
-        f.render_widget(popup, popup_area);
-    }
-
-    fn centered_rect(
-        percent_x: u16,
-        percent_y: u16,
-        r: ratatui::layout::Rect,
-    ) -> ratatui::layout::Rect {
-        let popup_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ])
-            .split(r);
-
-        Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ])
-            .split(popup_layout[1])[1]
+    // Popups removed for a cleaner, less "boxy" look
     }
 }
 

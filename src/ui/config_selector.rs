@@ -1,3 +1,4 @@
+use crate::util::render_branch_name;
 use anyhow::Result;
 use crossterm::event::{
     self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind,
@@ -7,6 +8,7 @@ use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use ratatui::prelude::*;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::*;
 use std::io;
 
@@ -282,82 +284,64 @@ impl ConfigSelectorApp {
     fn render_task_id_input(f: &mut Frame, input: &str, template: &str) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
+            .margin(1)
             .constraints([
-                Constraint::Length(5), // Title and description
-                Constraint::Length(5), // Input field
-                Constraint::Length(5), // Preview
-                Constraint::Length(3), // Instructions
-                Constraint::Min(0),    // Spacer
+                Constraint::Length(1), // title
+                Constraint::Length(2), // prompt
+                Constraint::Length(2), // preview
+                Constraint::Length(1), // instructions
+                Constraint::Min(0),
             ])
             .split(f.area());
 
-        // Title and description
-        let title_text = vec![
-            Line::from(Span::styled(
-                "Task ID Input",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            )),
-            Line::from(""),
-            Line::from(Span::styled(
-                "Enter the task ID for the cherry-pick branch name:",
-                Style::default().fg(Color::Gray),
-            )),
-        ];
-        let title_paragraph = Paragraph::new(title_text)
-            .block(Block::default().borders(Borders::ALL))
-            .alignment(Alignment::Center);
-        f.render_widget(title_paragraph, chunks[0]);
+        // Title
+        let title = Paragraph::new(Line::from(Span::styled(
+            "Task ID",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )))
+        .alignment(Alignment::Left);
+        f.render_widget(title, chunks[0]);
 
-        // Input field
-        let input_paragraph = Paragraph::new(input)
-            .style(Style::default().fg(Color::Yellow))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" Task ID ")
-                    .title_style(Style::default().fg(Color::Green)),
-            );
-        f.render_widget(input_paragraph, chunks[1]);
+        // Prompt line (no boxes)
+        let placeholder = "e.g., GH-123";
+        let prompt_line = if input.is_empty() {
+            Line::from(vec![
+                Span::styled(">> ", Style::default().fg(Color::Yellow)),
+                Span::styled(
+                    placeholder,
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                ),
+            ])
+        } else {
+            Line::from(vec![
+                Span::styled(">> ", Style::default().fg(Color::Yellow)),
+                Span::raw(input.to_string()),
+            ])
+        };
+        f.render_widget(Paragraph::new(prompt_line), chunks[1]);
 
-        // Preview
-        let preview_branch =
-            template.replace("{task_id}", if input.is_empty() { "GH-123" } else { input });
-        let preview_text = vec![
-            Line::from(Span::styled(
-                "Branch name preview:",
-                Style::default().fg(Color::Gray),
-            )),
-            Line::from(""),
-            Line::from(Span::styled(
-                preview_branch,
+        // Preview line
+        let sample = if input.is_empty() { "GH-123" } else { input };
+        let preview = render_branch_name(template, sample);
+        let preview_line = Line::from(vec![
+            Span::styled("Branch: ", Style::default().fg(Color::Gray)),
+            Span::styled(
+                preview,
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
-            )),
-        ];
-        let preview_paragraph = Paragraph::new(preview_text)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" Preview ")
-                    .title_style(Style::default().fg(Color::Yellow)),
-            )
-            .alignment(Alignment::Center);
-        f.render_widget(preview_paragraph, chunks[2]);
+            ),
+        ]);
+        f.render_widget(Paragraph::new(preview_line), chunks[2]);
 
-        // Instructions
-        let instructions = ["Type task ID | Enter: Confirm | Backspace: Delete | Esc: Cancel"];
-        let instructions_paragraph = Paragraph::new(instructions.join("\n"))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" Instructions ")
-                    .title_style(Style::default().fg(Color::Green)),
-            )
+        // Instructions/status line
+        let status = Paragraph::new("Enter: Confirm  •  Esc: Cancel  •  Backspace: Delete")
             .style(Style::default().fg(Color::Gray))
-            .alignment(Alignment::Center);
-        f.render_widget(instructions_paragraph, chunks[3]);
+            .alignment(Alignment::Left);
+        f.render_widget(status, chunks[3]);
     }
 }

@@ -78,7 +78,7 @@ impl App {
 
             if let Event::Key(key) = event::read()? {
                 if key.kind == KeyEventKind::Press {
-                    match self.handle_key_event(key.code).await {
+                    match self.handle_key_event(key).await {
                         Ok(should_continue) => {
                             if !should_continue {
                                 break;
@@ -141,8 +141,38 @@ impl App {
         f.render_widget(paragraph, chunks[0]);
     }
 
-    async fn handle_key_event(&mut self, key: KeyCode) -> Result<bool> {
-        match key {
+    async fn handle_key_event(&mut self, key: crossterm::event::KeyEvent) -> Result<bool> {
+        let code = key.code;
+        if self.state.input_active {
+            // Inline prompt editing
+            match code {
+                KeyCode::Enter => {
+                    let value = self.state.confirm_prompt();
+                    // For now used as filter input when on PR list
+                    if matches!(self.state.current_screen, Screen::PrList) {
+                        self.state.set_filter_query(if value.is_empty() {
+                            None
+                        } else {
+                            Some(value)
+                        });
+                    }
+                }
+                KeyCode::Esc => {
+                    self.state.cancel_prompt();
+                }
+                KeyCode::Backspace => {
+                    self.state.input_buffer.pop();
+                }
+                KeyCode::Char(c) => {
+                    self.state.input_buffer.push(c);
+                }
+                KeyCode::Tab => {}
+                _ => {}
+            }
+            return Ok(true);
+        }
+
+        match code {
             KeyCode::Char('q') => {
                 self.should_quit = true;
                 return Ok(false);
@@ -158,9 +188,9 @@ impl App {
             },
             _ => {
                 match &self.state.current_screen {
-                    Screen::MainMenu => self.handle_main_menu_input(key).await?,
-                    Screen::PrList => self.handle_pr_list_input(key).await?,
-                    Screen::Progress => self.handle_progress_input(key).await?,
+                    Screen::MainMenu => self.handle_main_menu_input(code).await?,
+                    Screen::PrList => self.handle_pr_list_input(code).await?,
+                    Screen::Progress => self.handle_progress_input(code).await?,
                     Screen::Error => {
                         // Any key from error screen goes back to main menu
                         self.state.current_screen = Screen::MainMenu;
@@ -195,11 +225,23 @@ impl App {
             }
             KeyCode::Enter => {
                 if let Some(selected) = self.state.pr_list_state.selected() {
-                    self.cherry_pick_pr(selected).await?;
+                    // map from visible selection to actual PR index
+                    if let Some(&actual_idx) = self.state.display_indices.get(selected) {
+                        self.cherry_pick_pr(actual_idx).await?;
+                    }
                 }
             }
             KeyCode::Char('r') => {
                 self.load_prs().await?;
+            }
+            KeyCode::Char('f') => {
+                // Activate inline filter prompt
+                let hint = "type to filter by #, title or author (Enter to apply, Esc to cancel)";
+                let initial_owned = {
+                    let initial = self.state.filter_query.as_deref().unwrap_or("");
+                    initial.to_string()
+                };
+                self.state.start_prompt("Filter PRs", hint, &initial_owned);
             }
             _ => {}
         }

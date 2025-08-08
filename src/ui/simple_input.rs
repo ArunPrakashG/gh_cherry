@@ -67,14 +67,14 @@ impl SimpleInput {
             .alignment(Alignment::Left);
         f.render_widget(title_p, chunks[0]);
 
-        let content = if input.is_empty() {
+    let content = if input.is_empty() {
             Line::from(vec![
-                Span::styled("› ", Style::default().fg(Color::Yellow)),
+        Span::styled(">> ", Style::default().fg(Color::Yellow)),
                 Span::styled(placeholder, Style::default().fg(Color::DarkGray).italic()),
             ])
         } else {
             Line::from(vec![
-                Span::styled("› ", Style::default().fg(Color::Yellow)),
+        Span::styled(">> ", Style::default().fg(Color::Yellow)),
                 Span::raw(input.to_string()),
             ])
         };
