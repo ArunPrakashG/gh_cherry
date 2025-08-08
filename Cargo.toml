@@ -1,6 +1,6 @@
 [package]
 name = "gh_cherry"
-version = "0.1.0"
+version = "0.0.2"
 edition = "2021"
 authors = ["ArunPrakashG <arun.prakash.456789@gmail.com>"]
 description = "A TUI application for cherry-picking GitHub PRs to target branches"
