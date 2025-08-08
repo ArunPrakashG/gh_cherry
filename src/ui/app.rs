@@ -120,7 +120,7 @@ impl App {
         use ratatui::{
             layout::{Constraint, Direction, Layout},
             style::{Color, Style},
-            widgets::{Block, Borders, Paragraph, Wrap},
+            widgets::{Paragraph, Wrap},
         };
 
         let chunks = Layout::default()
@@ -135,7 +135,6 @@ impl App {
             .as_deref()
             .unwrap_or("Unknown error");
         let paragraph = Paragraph::new(error_message)
-            .block(Block::default().title("Error").borders(Borders::ALL))
             .style(Style::default().fg(Color::Red))
             .wrap(Wrap { trim: true });
 

@@ -13,6 +13,7 @@ use github::GitHubClient;
 use ui::app::App;
 use ui::config_selector::ConfigSelectorApp;
 use ui::selector::SelectorApp;
+use ui::simple_input::SimpleInput;
 
 #[derive(Parser)]
 #[command(author, version, about = "A TUI application for cherry-picking GitHub PRs to target branches. Auto-discovers organizations and repositories when not specified.", long_about = None)]
@@ -113,24 +114,18 @@ async fn main() -> Result<()> {
         config = handle_auto_discovery(config).await?;
     }
 
-    // If source branch is default or not set, prompt user for customization
+    // If source branch is default or not set, prompt user for customization via TUI input (no boxes)
     if config.github.cherry_pick_source_branch == "master"
         || config.github.cherry_pick_source_branch.is_empty()
     {
-        println!(
-            "Current source branch for cherry-pick: {}",
-            config.github.cherry_pick_source_branch
-        );
-        println!("Press Enter to use current, or type a different branch:");
-        use std::io::{self, Write};
-        io::stdout().flush()?;
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-        let input = input.trim();
-
-        if !input.is_empty() {
-            config.github.cherry_pick_source_branch = input.to_string();
+        let title = "Source branch for cherry-pick";
+        let placeholder = "e.g., main or release/2025.08 (Enter to accept current)";
+        if let Some(input) =
+            SimpleInput::prompt(title, &config.github.cherry_pick_source_branch, placeholder)?
+        {
+            if !input.is_empty() {
+                config.github.cherry_pick_source_branch = input;
+            }
         }
     }
 

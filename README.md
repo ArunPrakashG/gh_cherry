@@ -1,344 +1,131 @@
-# GitHub Cherry-Pick TUI
+# 🍒 gh_cherry — GitHub Cherry‑Pick TUI
 
 [![Built With Ratatui](https://ratatui.rs/built-with-ratatui/badge.svg)](https://ratatui.rs/)
 
-A Terminal User Interface (TUI) application built in Rust to assist with cherry-picking Pull Requests to target branches, specifically designed for release branch workflows.
+A fast, cross‑platform Terminal User Interface (TUI) written in Rust to help teams cherry‑pick Pull Requests into target branches during release workflows.
 
-## Features
+## ✨ Features
 
-- 🎯 **Smart PR Detection**: Automatically finds PRs with specific tags (e.g., "S28 DEV pending cherrypick")
-- � **Auto-Discovery**: Automatically discovers available organizations and repositories when not specified
-- �🔐 **GitHub Authentication**: Seamlessly integrates with GitHub CLI auth or supports Personal Access Tokens
-- 🍒 **Interactive Cherry-Picking**: Select and cherry-pick individual PRs or commits with visual feedback
+- 🎯 Smart PR detection by labels/tags (e.g., sprint and environment)
+- 🔍 Auto‑discovery of owners/orgs and repositories when not specified
+- 🔐 GitHub auth via `gh` or Personal Access Token
+- 🍒 Interactive cherry‑picking with clear progress and results
+- ⚡ Merge‑conflict handling and guided resolution
+- 🏷️ Tag workflow support (e.g., move from “pending cherrypick” to “cherry picked”)
+- 📊 Modern TUI powered by Ratatui
 
-````
+## 🎯 Use case
 
-#### Windows PowerShell quick commands
+Great for teams that:
 
-```powershell
-- ⚡ **Conflict Resolution**: Graceful handling of merge conflicts with interactive resolution
-- 🏷️ **Automatic Tag Management**: Updates PR tags from "pending cherrypick" to "cherry picked" after successful operations
-- 📊 **Rich TUI**: Modern terminal interface built with Ratatui for an excellent user experience
+- Merge into a `develop` branch and need selective backports to release branches
+- Use sprint/environment tags (e.g., `S28`, `DEV`) to mark PRs that need cherrypicking
+- Want a fast TUI to pick PRs and push results with consistent labeling
 
-## Use Case
-
-This tool is designed for development teams using a Git workflow where:
-
-- Developers create PRs to a `develop` branch
-- PRs are tagged with sprint identifiers (e.g., "S28") and environment tags ("DEV")
-- PRs include a "pending cherrypick" tag when they need to be cherry-picked to release branches
-````
-
-- After successful cherry-picking, tags are updated to "cherry picked"
-
-## Installation
+## 🚀 Installation
 
 ### Prerequisites
 
-- Rust 1.70.0 or later
-- Git installed and configured
-- GitHub CLI (`gh`) installed and authenticated (recommended)
-- Or a GitHub Personal Access Token
+- Rust 1.70+ and Git
+- GitHub CLI (`gh`) authenticated, or a GitHub Personal Access Token
 
-### From Source
+### From source
 
 ```bash
-git clone https://github.com/yourusername/gh_cherry.git
+git clone https://github.com/ArunPrakashG/gh_cherry.git
 cd gh_cherry
 cargo build --release
 cargo install --path .
 ```
 
-### Using Cargo
+### Prebuilt binaries
 
-```bash
-cargo install gh_cherry
-```
+Download from GitHub Releases. Each release includes assets for Windows, macOS, and Linux.
 
-## Setup
+- Windows: unzip and run `scripts/setup.ps1` (adds `gh_cherry.exe` to PATH)
+- macOS/Linux: extract and run `scripts/setup_unix.sh` (installs to `~/.local/bin` by default)
+
+## 🔧 Setup
 
 ### Authentication
 
-#### Option 1: GitHub CLI (Recommended)
+Option 1 — GitHub CLI (recommended):
 
 ```bash
-# Install GitHub CLI if not already installed
-# On Windows: winget install GitHub.cli
-# On macOS: brew install gh
-# On Linux: See https://github.com/cli/cli#installation
-
-# Authenticate with GitHub
 gh auth login
 ```
 
-#### Option 2: Personal Access Token
+Option 2 — Personal Access Token:
 
-1. Create a Personal Access Token at https://github.com/settings/tokens
-2. Grant the following permissions:
-   - `repo` (Full control of private repositories)
-   - `read:org` (Read org and team membership)
-3. Set the token as an environment variable:
-
-```bash
-export GITHUB_TOKEN=your_token_here
-```
+1. Create a token at https://github.com/settings/tokens with `repo` and `read:org`
+2. Export it: `export GITHUB_TOKEN=your_token`
 
 ### Configuration
 
-Create a configuration file at `~/.config/gh_cherry/config.toml`:
+Create `~/.config/gh_cherry/config.toml`:
 
 ```toml
 [github]
-# Organization or username
 owner = "your-org"
-# Repository name
 repo = "your-repo"
-# Base branch to cherry-pick from (usually develop)
 base_branch = "develop"
-# Default target branch (can be changed in UI)
 target_branch = "main"
 
 [tags]
-# Sprint tag pattern (e.g., S28, S29, etc.)
 sprint_pattern = "S\\d+"
-# Environment tag
 environment = "DEV"
-# Tag indicating PR needs cherry-picking
 pending_tag = "pending cherrypick"
-# Tag to set after successful cherry-pick
 completed_tag = "cherry picked"
 
 [ui]
-# Number of days to look back for PRs (default: 28)
 days_back = 28
-# Items per page in PR list (default: 20)
 page_size = 20
 ```
 
-## Usage
+## 🧭 Usage
 
-### Basic Usage
-
-```bash
-# Start the TUI application with auto-discovery
-# Will prompt you to select from available organizations and repositories
-gh_cherry
-
-# Or specify a specific repository
-gh_cherry --owner myorg --repo myrepo
-
-# Or specify a config file
-gh_cherry --config /path/to/config.toml
-```
-
-### Auto-Discovery Feature
-
-When you run `gh_cherry` without specifying `--owner` and `--repo`, the application will:
-
-1. **Authenticate with GitHub** using GitHub CLI or environment token
-2. **Discover Organizations**: List your personal account and organizations you belong to
-3. **Interactive Selection**: If multiple options are available, you'll be prompted to choose
-4. **Discover Repositories**: List repositories accessible under the selected owner
-5. **Interactive Repository Selection**: Choose from available repositories with details like visibility and description
-
-Example auto-discovery session:
-
-```
-$ gh_cherry
-No owner/repo specified, discovering available options...
-Authenticated as: John Doe (johndoe)
-
-Multiple organizations available:
-0. johndoe (Your personal account)
-1. mycompany - Main company organization
-2. opensourceproject - Open source projects
-
-Select organization (0-2): 1
-Selected owner: mycompany
-
-Multiple repositories available:
-1. webapp (Private) - Main web application
-2. api-server (Private) - REST API backend
-3. docs (Public) - Documentation site
-
-Select repository (1-3): 1
-Selected repository: webapp
-```
-
-### Command Line Options
+Quick start:
 
 ```bash
-gh_cherry [OPTIONS]
-
-Options:
-    -o, --owner <OWNER>          GitHub repository owner (auto-discovered if not provided)
-    -r, --repo <REPO>            GitHub repository name (auto-discovered if not provided)
-    -c, --config <CONFIG>        Path to configuration file
-    -b, --base-branch <BRANCH>   Base branch to cherry-pick from
-    -t, --target-branch <BRANCH> Target branch to cherry-pick to
-    -d, --days <DAYS>            Number of days to look back for PRs
-    -h, --help                   Print help information
-    -V, --version                Print version information
+gh_cherry              # auto-discover owner/repo
+gh_cherry -o myorg -r myrepo
+gh_cherry --config examples/dev-config.toml
 ```
 
-### TUI Interface
+Keyboard shortcuts: `↑/↓` or `j/k` navigate • `Enter` select • `Space` multi‑select • `Tab` switch • `Esc` back • `q` quit • `r` refresh • `h` help • `/` search
 
-The application provides an intuitive terminal interface with the following screens:
-
-1. **Main Menu**: Choose between different operations
-2. **PR List**: Browse PRs matching your criteria
-3. **PR Details**: View detailed information about selected PRs
-4. **Cherry-Pick Confirmation**: Review changes before applying
-5. **Progress**: Real-time feedback during operations
-6. **Conflict Resolution**: Interactive conflict resolution interface
-
-### Keyboard Shortcuts
-
-- `↑/↓` or `j/k`: Navigate up/down
-- `Enter`: Select/Confirm
-- `Space`: Toggle selection (multi-select mode)
-- `Tab`: Switch between panels
-- `Esc`: Go back/Cancel
-- `q`: Quit application
-- `r`: Refresh current view
-- `h`: Show help
-- `/`: Search/Filter
-
-## Development Environment Setup
-
-### Prerequisites
-
-- Rust 1.70.0+
-- Git
-- GitHub CLI or Personal Access Token
-- A test repository with PRs tagged according to the expected pattern
-
-### Building from Source
+## 🧪 Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/gh_cherry.git
+git clone https://github.com/ArunPrakashG/gh_cherry.git
 cd gh_cherry
-
-# Install dependencies and build
 cargo build
-
-# Run tests
 cargo test
-
-# Run with development settings
-cargo run -- --config examples/dev-config.toml
-
-# Run with debug logging
-RUST_LOG=debug cargo run
+RUST_LOG=debug cargo run -- --config examples/dev-config.toml
 ```
 
-### Development Dependencies
+Main crates: ratatui, octocrab, git2, tokio, clap, serde, toml
 
-The project uses the following main dependencies:
+## 📦 Releases (CI)
 
-- `ratatui`: Terminal user interface framework
-- `octocrab`: GitHub API client
-- `git2`: Git operations
-- `tokio`: Async runtime
-- `clap`: Command line argument parsing
-- `serde`: Serialization/deserialization
-- `toml`: Configuration file parsing
+This repo ships a GitHub Actions workflow that builds binaries for Windows, macOS, and Linux and attaches them to a GitHub Release when you push a tag like `v1.2.3` (or run the workflow manually). See `.github/workflows/release.yml`.
 
-### Testing
+## ❓ Troubleshooting
 
-```bash
-# Run all tests
-cargo test
+- Auth errors: `gh auth status`, or set `GITHUB_TOKEN` with `repo` and `read:org`
+- Repo not found: check owner/name and access; ensure auth is configured
+- Git failures: run from a git repo; ensure you have write permissions; stash local changes
+- No PRs found: adjust tag patterns or `days_back`; verify base branch
 
-# Run with output
-cargo test -- --nocapture
+Debug logging: `RUST_LOG=debug gh_cherry`
 
-# Run integration tests (requires test repository)
-cargo test --features integration-tests
+## 📜 License
 
-# Run specific test
-cargo test test_name
-```
+MIT — see [LICENSE](LICENSE).
 
-### Contributing
+## 🙌 Acknowledgments
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass (`cargo test`)
-6. Format code (`cargo fmt`)
-7. Check with clippy (`cargo clippy`)
-8. Commit your changes (`git commit -m 'Add amazing feature'`)
-9. Push to the branch (`git push origin feature/amazing-feature`)
-10. Open a Pull Request
-
-## Troubleshooting
-
-### Common Issues
-
-#### Authentication Errors
-
-```
-Error: GitHub authentication failed
-```
-
-- Ensure GitHub CLI is installed and authenticated: `gh auth status`
-- Or set a valid Personal Access Token: `export GITHUB_TOKEN=your_token`
-- Check token permissions include `repo` and `read:org`
-
-#### Repository Not Found
-
-```
-Error: Repository not found or access denied
-```
-
-- Verify repository owner and name are correct
-- Ensure you have access to the repository
-- Check if repository is private and authentication is properly configured
-
-#### Git Operations Failed
-
-```
-Error: Failed to perform git operation
-```
-
-- Ensure you're running from within a Git repository
-- Verify you have write permissions to the repository
-- Check if there are uncommitted changes that need to be stashed
-
-#### No PRs Found
-
-```
-No PRs found matching criteria
-```
-
-- Verify tag patterns in configuration match your repository's tagging scheme
-- Check the date range (increase `days_back` in config)
-- Ensure PRs exist on the specified base branch
-
-### Debug Mode
-
-Enable debug logging to troubleshoot issues:
-
-```bash
-RUST_LOG=debug gh_cherry
-```
-
-### Getting Help
-
-- Create an issue on GitHub: [Issues](https://github.com/yourusername/gh_cherry/issues)
-- Check existing documentation and FAQ
-- Join discussions: [Discussions](https://github.com/yourusername/gh_cherry/discussions)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [Ratatui](https://github.com/ratatui/ratatui) for the excellent TUI framework
-- [Octocrab](https://github.com/XAMPPRocky/octocrab) for GitHub API integration
-- [git2-rs](https://github.com/rust-lang/git2-rs) for Git operations
-- The Rust community for excellent tooling and libraries
+- [Ratatui](https://github.com/ratatui/ratatui)
+- [Octocrab](https://github.com/XAMPPRocky/octocrab)
+- [git2-rs](https://github.com/rust-lang/git2-rs)
+- The Rust community

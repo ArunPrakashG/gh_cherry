@@ -277,11 +277,7 @@ impl SelectorApp {
             .split(f.area());
 
         // Title
-        let title_block = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::Cyan));
-        let title_paragraph = Paragraph::new("Select Repository")
-            .block(title_block)
+    let title_paragraph = Paragraph::new("Select Repository")
             .alignment(Alignment::Center)
             .style(Style::default().add_modifier(Modifier::BOLD));
         f.render_widget(title_paragraph, chunks[0]);
@@ -357,17 +353,7 @@ impl SelectorApp {
             })
             .collect();
 
-        let list = List::new(items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!(
-                    " {} repositories (showing {}-{}) ",
-                    filtered_indices.len(),
-                    scroll_offset + 1,
-                    (scroll_offset + visible_indices.len()).min(filtered_indices.len())
-                ))
-                .title_style(Style::default().fg(Color::Yellow)),
-        );
+    let list = List::new(items);
 
         f.render_widget(list, chunks[1]);
 
@@ -384,24 +370,12 @@ impl SelectorApp {
             Style::default().fg(Color::Gray)
         };
 
-        let search_block = Block::default()
-            .borders(Borders::ALL)
-            .title(search_title)
-            .title_style(search_style)
-            .style(search_style);
-
-        let search_paragraph = Paragraph::new("").block(search_block);
+    let search_paragraph = Paragraph::new(search_title).style(search_style);
         f.render_widget(search_paragraph, chunks[2]);
 
         // Instructions
         let instructions = ["↑/↓: Navigate | Enter: Select | /: Search | Esc/q: Cancel"];
         let instructions_paragraph = Paragraph::new(instructions.join("\n"))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" Instructions ")
-                    .title_style(Style::default().fg(Color::Green)),
-            )
             .style(Style::default().fg(Color::Gray))
             .alignment(Alignment::Center);
         f.render_widget(instructions_paragraph, chunks[3]);
@@ -425,11 +399,7 @@ impl SelectorApp {
             .split(f.area());
 
         // Title
-        let title_block = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::Cyan));
-        let title_paragraph = Paragraph::new(title)
-            .block(title_block)
+    let title_paragraph = Paragraph::new(title)
             .alignment(Alignment::Center)
             .style(Style::default().add_modifier(Modifier::BOLD));
         f.render_widget(title_paragraph, chunks[0]);
@@ -456,14 +426,7 @@ impl SelectorApp {
             })
             .collect();
 
-        let list = List::new(items)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(format!(" {} items ", filtered_indices.len()))
-                    .title_style(Style::default().fg(Color::Yellow)),
-            )
-            .style(Style::default().fg(Color::White));
+    let list = List::new(items).style(Style::default().fg(Color::White));
 
         f.render_widget(list, chunks[1]);
 
@@ -480,24 +443,12 @@ impl SelectorApp {
             Style::default().fg(Color::Gray)
         };
 
-        let search_block = Block::default()
-            .borders(Borders::ALL)
-            .title(search_title)
-            .title_style(search_style)
-            .style(search_style);
-
-        let search_paragraph = Paragraph::new("").block(search_block);
+    let search_paragraph = Paragraph::new(search_title).style(search_style);
         f.render_widget(search_paragraph, chunks[2]);
 
         // Instructions
         let instructions = ["↑/↓: Navigate | Enter: Select | /: Search | Esc/q: Cancel"];
         let instructions_paragraph = Paragraph::new(instructions.join("\n"))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" Instructions ")
-                    .title_style(Style::default().fg(Color::Green)),
-            )
             .style(Style::default().fg(Color::Gray))
             .alignment(Alignment::Center);
         f.render_widget(instructions_paragraph, chunks[3]);

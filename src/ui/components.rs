@@ -1,7 +1,7 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Clear, Gauge, List, ListItem, Paragraph, Wrap},
+    widgets::{Clear, Gauge, List, ListItem, Paragraph, Wrap},
     Frame,
 };
 
@@ -29,8 +29,7 @@ impl MainMenu {
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
             )
-            .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
+            .alignment(Alignment::Center);
         f.render_widget(title, chunks[0]);
 
         // Menu items
@@ -39,7 +38,6 @@ impl MainMenu {
         let menu: Vec<ListItem> = menu_items.iter().map(|item| ListItem::new(*item)).collect();
 
         let menu_list = List::new(menu)
-            .block(Block::default().title("Menu").borders(Borders::ALL))
             .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().bg(Color::Yellow).fg(Color::Black));
 
@@ -48,8 +46,7 @@ impl MainMenu {
         // Instructions
         let instructions = Paragraph::new("Use numbers to select options, 'q' to quit")
             .style(Style::default().fg(Color::Gray))
-            .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
+            .alignment(Alignment::Center);
         f.render_widget(instructions, chunks[2]);
     }
 }
@@ -75,8 +72,7 @@ impl PrList {
                     .fg(Color::Blue)
                     .add_modifier(Modifier::BOLD),
             )
-            .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
+            .alignment(Alignment::Center);
         f.render_widget(title, chunks[0]);
 
         // PR List
@@ -108,8 +104,7 @@ impl PrList {
             let empty_message = Paragraph::new(criteria_info)
                 .style(Style::default().fg(Color::Gray))
                 .alignment(Alignment::Left)
-                .wrap(Wrap { trim: true })
-                .block(Block::default().borders(Borders::ALL).title(" No PRs Found "));
+                .wrap(Wrap { trim: true });
             f.render_widget(empty_message, chunks[1]);
         } else {
             let items: Vec<ListItem> = state
@@ -135,7 +130,6 @@ impl PrList {
                 .collect();
 
             let list = List::new(items)
-                .block(Block::default().title("PRs").borders(Borders::ALL))
                 .highlight_style(
                     Style::default()
                         .bg(Color::Yellow)
@@ -152,8 +146,7 @@ impl PrList {
         let instructions =
             Paragraph::new("↑/↓: Navigate | Enter: Cherry-pick | r: Refresh | Esc: Back | q: Quit")
                 .style(Style::default().fg(Color::Gray))
-                .alignment(Alignment::Center)
-                .block(Block::default().borders(Borders::ALL));
+                .alignment(Alignment::Center);
         f.render_widget(instructions, chunks[2]);
 
         // Show success message if any
@@ -168,12 +161,7 @@ impl PrList {
         let popup = Paragraph::new(message)
             .style(Style::default().fg(color))
             .alignment(Alignment::Center)
-            .wrap(Wrap { trim: true })
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .style(Style::default().fg(color)),
-            );
+            .wrap(Wrap { trim: true });
         f.render_widget(popup, popup_area);
     }
 
@@ -223,13 +211,11 @@ impl ProgressView {
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
             )
-            .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
+            .alignment(Alignment::Center);
         f.render_widget(title, chunks[0]);
 
         // Progress bar (indeterminate)
         let progress = Gauge::default()
-            .block(Block::default().borders(Borders::ALL))
             .gauge_style(Style::default().fg(Color::Yellow))
             .percent(50) // Static for now, could be animated
             .label("Working...");
@@ -241,8 +227,7 @@ impl ProgressView {
         let status = Paragraph::new(message)
             .style(Style::default().fg(Color::White))
             .alignment(Alignment::Center)
-            .wrap(Wrap { trim: true })
-            .block(Block::default().borders(Borders::ALL));
+            .wrap(Wrap { trim: true });
         f.render_widget(status, chunks[2]);
     }
 }

@@ -1,0 +1,122 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name to release (e.g., v1.0.0). If empty, uses the pushed tag."
+        required: false
+        default: ""
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }} / ${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: gh_cherry
+            archive: tar.gz
+            asset_suffix: linux-x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bin: gh_cherry.exe
+            archive: zip
+            asset_suffix: windows-x86_64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bin: gh_cherry
+            archive: zip
+            asset_suffix: macos-x86_64
+          - os: macos-14
+            target: aarch64-apple-darwin
+            bin: gh_cherry
+            archive: zip
+            asset_suffix: macos-aarch64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust (${{ matrix.target }})
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="dist"
+          mkdir -p "$ARTIFACT_DIR"
+          BIN_PATH="target/${{ matrix.target }}/release/${{ matrix.bin }}"
+          NAME="gh_cherry-${{ matrix.asset_suffix }}"
+          # copy scripts if present
+          mkdir -p "$NAME/scripts"
+          if [ -f scripts/setup.ps1 ]; then cp scripts/setup.ps1 "$NAME/scripts/"; fi
+          if [ -f scripts/setup_unix.sh ]; then cp scripts/setup_unix.sh "$NAME/scripts/"; fi
+          cp "$BIN_PATH" "$NAME/"
+          cp -f README.md "$NAME/" || true
+          cp -f LICENSE "$NAME/" 2>/dev/null || true
+
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            if [ "$RUNNER_OS" = "Windows" ]; then
+              pwsh -NoProfile -Command "Compress-Archive -Path '$NAME/*' -DestinationPath '$ARTIFACT_DIR/$NAME.zip' -Force" 1> /dev/null
+            else
+              zip -r "$ARTIFACT_DIR/$NAME.zip" "$NAME" >/dev/null
+            fi
+            echo "asset=$ARTIFACT_DIR/$NAME.zip" >> $GITHUB_OUTPUT
+          else
+            tar -czf "$ARTIFACT_DIR/$NAME.tar.gz" "$NAME"
+            echo "asset=$ARTIFACT_DIR/$NAME.tar.gz" >> $GITHUB_OUTPUT
+          fi
+        id: pack
+
+      - name: Upload artifact (workflow run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-${{ matrix.target }}
+          path: ${{ steps.pack.outputs.asset }}
+          retention-days: 7
+
+  release:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Create GitHub Release
+        id: gh-release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' || inputs.tag != ''
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: |
+            dist/**/*
+          generate_release_notes: true
+
+      - name: Summary
+        run: |
+          echo "Release tag: ${{ inputs.tag || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "Assets:" >> $GITHUB_STEP_SUMMARY
+          find dist -type f >> $GITHUB_STEP_SUMMARY
