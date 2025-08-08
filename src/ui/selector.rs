@@ -4,7 +4,7 @@ use crossterm::event::{
 };
 use crossterm::execute;
 use crossterm::terminal::{
-    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use ratatui::prelude::*;
 use ratatui::widgets::*;
@@ -78,7 +78,8 @@ impl SelectorApp {
                     .iter()
                     .enumerate()
                     .filter(|(_, repo)| {
-                        let search_text = format!("{} {}", repo.name, repo.description).to_lowercase();
+                        let search_text =
+                            format!("{} {}", repo.name, repo.description).to_lowercase();
                         search_text.contains(&self.search_query.to_lowercase())
                     })
                     .map(|(index, _)| index)
@@ -287,9 +288,11 @@ impl SelectorApp {
 
         // List with multi-line items
         let max_visible = (chunks[1].height.saturating_sub(2) / 3) as usize; // 3 lines per item (name + desc + separator)
-        
+
         // Ensure scroll_offset doesn't exceed filtered indices
-        let scroll_offset = self.scroll_offset.min(filtered_indices.len().saturating_sub(1));
+        let scroll_offset = self
+            .scroll_offset
+            .min(filtered_indices.len().saturating_sub(1));
         let end_index = (scroll_offset + max_visible).min(filtered_indices.len());
         let visible_indices = if end_index > scroll_offset {
             &filtered_indices[scroll_offset..end_index]
@@ -322,23 +325,31 @@ impl SelectorApp {
                 let separator_line = "─".repeat(60);
 
                 let lines = vec![
-                    Line::from(Span::styled(name_line, 
-                        if is_selected { 
-                            Style::default().fg(Color::Black).bg(Color::LightBlue).add_modifier(Modifier::BOLD)
-                        } else { 
-                            Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
-                        }
+                    Line::from(Span::styled(
+                        name_line,
+                        if is_selected {
+                            Style::default()
+                                .fg(Color::Black)
+                                .bg(Color::LightBlue)
+                                .add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default()
+                                .fg(Color::White)
+                                .add_modifier(Modifier::BOLD)
+                        },
                     )),
-                    Line::from(Span::styled(desc_line,
+                    Line::from(Span::styled(
+                        desc_line,
                         if is_selected {
                             Style::default().fg(Color::DarkGray).bg(Color::LightBlue)
                         } else {
                             Style::default().fg(Color::Gray)
-                        }
+                        },
                     )),
-                    Line::from(Span::styled(separator_line,
+                    Line::from(Span::styled(
+                        separator_line,
                         // Separator is never highlighted - always use dim styling
-                        Style::default().fg(Color::DarkGray)
+                        Style::default().fg(Color::DarkGray),
                     )),
                 ];
 
@@ -346,17 +357,17 @@ impl SelectorApp {
             })
             .collect();
 
-        let list = List::new(items)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(format!(" {} repositories (showing {}-{}) ", 
-                        filtered_indices.len(),
-                        scroll_offset + 1,
-                        (scroll_offset + visible_indices.len()).min(filtered_indices.len())
-                    ))
-                    .title_style(Style::default().fg(Color::Yellow)),
-            );
+        let list = List::new(items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!(
+                    " {} repositories (showing {}-{}) ",
+                    filtered_indices.len(),
+                    scroll_offset + 1,
+                    (scroll_offset + visible_indices.len()).min(filtered_indices.len())
+                ))
+                .title_style(Style::default().fg(Color::Yellow)),
+        );
 
         f.render_widget(list, chunks[1]);
 
@@ -383,7 +394,7 @@ impl SelectorApp {
         f.render_widget(search_paragraph, chunks[2]);
 
         // Instructions
-        let instructions = vec!["↑/↓: Navigate | Enter: Select | /: Search | Esc/q: Cancel"];
+        let instructions = ["↑/↓: Navigate | Enter: Select | /: Search | Esc/q: Cancel"];
         let instructions_paragraph = Paragraph::new(instructions.join("\n"))
             .block(
                 Block::default()
@@ -479,7 +490,7 @@ impl SelectorApp {
         f.render_widget(search_paragraph, chunks[2]);
 
         // Instructions
-        let instructions = vec!["↑/↓: Navigate | Enter: Select | /: Search | Esc/q: Cancel"];
+        let instructions = ["↑/↓: Navigate | Enter: Select | /: Search | Esc/q: Cancel"];
         let instructions_paragraph = Paragraph::new(instructions.join("\n"))
             .block(
                 Block::default()

@@ -126,8 +126,8 @@ impl GitOperations {
             .context("Failed to cherry-pick commit")?;
 
         // Check repository state after cherry-pick
-        match self.repo.state() {
-            RepositoryState::Clean => {
+    match self.repo.state() {
+        RepositoryState::Clean | RepositoryState::ApplyMailbox | RepositoryState::ApplyMailboxOrRebase => {
                 // No conflicts, commit the change
                 let signature = self.get_signature()?;
                 let tree_id = self.repo.index()?.write_tree()?;
@@ -138,7 +138,7 @@ impl GitOperations {
                     Some("HEAD"),
                     &signature,
                     &signature,
-                    &commit.message().unwrap_or("Cherry-pick"),
+            commit.message().unwrap_or("Cherry-pick"),
                     &tree,
                     &[&parent],
                 )?;
@@ -151,7 +151,7 @@ impl GitOperations {
                     commit_sha: Some(commit_id.to_string()),
                 })
             }
-            RepositoryState::CherryPickSequence => {
+        RepositoryState::CherryPick | RepositoryState::Merge | RepositoryState::Revert | RepositoryState::RebaseMerge | RepositoryState::Rebase | RepositoryState::RebaseInteractive | RepositoryState::CherryPickSequence => {
                 // There are conflicts
                 let conflicts = self.get_conflicts()?;
                 tracing::warn!("Cherry-pick has conflicts: {:?}", conflicts);
@@ -220,8 +220,8 @@ impl GitOperations {
             &[&parent],
         )?;
 
-        // Clean up cherry-pick state
-        self.repo.cleanup_state()?;
+    // Clean up cherry-pick state if any
+    let _ = self.repo.cleanup_state();
 
         tracing::info!(
             "Cherry-pick continued successfully, created commit: {}",
@@ -234,9 +234,7 @@ impl GitOperations {
     pub fn abort_cherry_pick(&self) -> Result<()> {
         tracing::info!("Aborting cherry-pick");
 
-        self.repo
-            .cleanup_state()
-            .context("Failed to cleanup cherry-pick state")?;
+    let _ = self.repo.cleanup_state();
 
         // Reset to HEAD
         let head = self.repo.head()?.peel_to_commit()?;

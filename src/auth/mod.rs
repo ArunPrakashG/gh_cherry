@@ -36,7 +36,7 @@ impl GitHubAuth {
     fn get_github_cli_token() -> Result<String> {
         // Check if gh CLI is available
         let output = Command::new("gh")
-            .args(&["auth", "status", "--show-token"])
+            .args(["auth", "status", "--show-token"])
             .output()
             .context("Failed to execute gh command. Is GitHub CLI installed?")?;
 
@@ -47,18 +47,19 @@ impl GitHubAuth {
         // Parse the token from the output
         let stdout = String::from_utf8_lossy(&output.stdout);
         for line in stdout.lines() {
-            if line.contains("Token:") {
-                let token = line
-                    .split_whitespace()
-                    .last()
-                    .context("Failed to parse token from gh output")?;
-                return Ok(token.to_string());
+            if let Some(pos) = line.find("Token:") {
+                // handle formats like "Token: ghp_..." possibly followed by extra info
+                let rest = &line[pos + "Token:".len()..];
+                let token = rest.split_whitespace().next().unwrap_or("");
+                if !token.is_empty() {
+                    return Ok(token.to_string());
+                }
             }
         }
 
         // If we can't get the token directly, try using gh api
         let output = Command::new("gh")
-            .args(&["auth", "token"])
+            .args(["auth", "token"])
             .output()
             .context("Failed to get token from gh auth token")?;
 

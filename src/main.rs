@@ -6,6 +6,7 @@ mod config;
 mod git;
 mod github;
 mod ui;
+mod util;
 
 use config::Config;
 use github::GitHubClient;
@@ -112,8 +113,8 @@ async fn main() -> Result<()> {
         config = handle_auto_discovery(config).await?;
     }
 
-    // If source branch is still default or not set, prompt user for customization
-    if config.github.cherry_pick_source_branch == "develop"
+    // If source branch is default or not set, prompt user for customization
+    if config.github.cherry_pick_source_branch == "master"
         || config.github.cherry_pick_source_branch.is_empty()
     {
         println!(

@@ -1,10 +1,12 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use octocrab::Octocrab;
+use octocrab::{Octocrab, Page};
 use regex::Regex;
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::auth::GitHubAuth;
+use crate::util::short_sha;
 use crate::config::Config;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,7 +89,7 @@ impl GitHubClient {
             since.format("%Y-%m-%d")
         );
 
-        let pulls = self
+        let mut page: Page<octocrab::models::pulls::PullRequest> = self
             .octocrab
             .pulls(&self.config.github.owner, &self.config.github.repo)
             .list()
@@ -104,34 +106,53 @@ impl GitHubClient {
         let sprint_regex =
             Regex::new(&self.config.tags.sprint_pattern).context("Invalid sprint pattern regex")?;
 
-        for pr in pulls {
-            // Filter by date
-            let pr_updated_at = pr.updated_at.unwrap_or(pr.created_at.unwrap_or(Utc::now()));
-            if pr_updated_at < since {
-                continue;
+        loop {
+            let mut stop_due_to_date = false;
+            for pr in &page {
+                // Filter by date
+                let pr_updated_at = pr.updated_at.unwrap_or(pr.created_at.unwrap_or(Utc::now()));
+                if pr_updated_at < since {
+                    stop_due_to_date = true;
+                    break;
+                }
+
+                // Get labels for the PR
+                let labels = self.get_pr_labels(pr.number).await?;
+
+                // Check if PR has the required tags
+                if crate::github::pr_matches_criteria(&self.config, &labels, &sprint_regex) {
+                    let commits = self.get_pr_commits(pr.number).await?;
+
+                    let pr_info = PrInfo {
+                        number: pr.number,
+                        title: pr.title.clone().unwrap_or_default(),
+                        author: pr.user.clone().map(|u| u.login).unwrap_or_default(),
+                        created_at: pr.created_at.unwrap_or(Utc::now()),
+                        updated_at: pr.updated_at.unwrap_or(pr.created_at.unwrap_or(Utc::now())),
+                        labels,
+                        commits,
+                        head_sha: pr.head.sha.clone(),
+                        base_ref: pr.base.ref_field.clone(),
+                        head_ref: pr.head.ref_field.clone(),
+                    };
+
+                    matching_prs.push(pr_info);
+                }
             }
 
-            // Get labels for the PR
-            let labels = self.get_pr_labels(pr.number).await?;
+            if stop_due_to_date {
+                break;
+            }
 
-            // Check if PR has the required tags
-            if self.pr_matches_criteria(&labels, &sprint_regex) {
-                let commits = self.get_pr_commits(pr.number).await?;
-
-                let pr_info = PrInfo {
-                    number: pr.number,
-                    title: pr.title.unwrap_or_default(),
-                    author: pr.user.map(|u| u.login).unwrap_or_default(),
-                    created_at: pr.created_at.unwrap_or(Utc::now()),
-                    updated_at: pr.updated_at.unwrap_or(pr.created_at.unwrap_or(Utc::now())),
-                    labels,
-                    commits,
-                    head_sha: pr.head.sha,
-                    base_ref: pr.base.ref_field,
-                    head_ref: pr.head.ref_field,
-                };
-
-                matching_prs.push(pr_info);
+            // Next page
+            if let Some(next_page) = self
+                .octocrab
+                .get_page::<octocrab::models::pulls::PullRequest>(&page.next)
+                .await?
+            {
+                page = next_page;
+            } else {
+                break;
             }
         }
 
@@ -169,24 +190,14 @@ impl GitHubClient {
             sha: pr.head.sha.clone(),
             message: pr.title.unwrap_or_else(|| format!("PR #{}", pr_number)),
             author: pr.user.map(|u| u.login).unwrap_or_else(|| "Unknown".to_string()),
-            date: pr.created_at.unwrap_or_else(|| Utc::now()),
+            date: pr.created_at.unwrap_or(Utc::now()),
         };
 
         tracing::info!("Using head commit {} for PR #{}", pr.head.sha, pr_number);
         Ok(vec![commit_info])
     }
 
-    fn pr_matches_criteria(&self, labels: &[String], sprint_regex: &Regex) -> bool {
-        let has_sprint_tag = labels.iter().any(|label| sprint_regex.is_match(label));
-        let has_env_tag = labels
-            .iter()
-            .any(|label| label == &self.config.tags.environment);
-        let has_pending_tag = labels
-            .iter()
-            .any(|label| label == &self.config.tags.pending_tag);
-
-        has_sprint_tag && has_env_tag && has_pending_tag
-    }
+    
 
     /// Updates a PR's labels after successful cherry-pick
     pub async fn update_pr_labels(&self, pr_number: u64) -> Result<()> {
@@ -221,15 +232,17 @@ impl GitHubClient {
         target_branch: &str,
         commit_shas: &[String],
     ) -> Result<()> {
-        let comment_body = format!(
-            "🍒 **Cherry-picked to `{}`**\n\nCommits:\n{}",
-            target_branch,
-            commit_shas
-                .iter()
-                .map(|sha| format!("- {}", &sha[..8]))
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
+        let comment_body = {
+            let mut lines = Vec::with_capacity(commit_shas.len());
+            for sha in commit_shas {
+                lines.push(format!("- {}", short_sha(sha)));
+            }
+            format!(
+                "🍒 **Cherry-picked to `{}`**\n\nCommits:\n{}",
+                target_branch,
+                lines.join("\n")
+            )
+        };
 
         self.octocrab
             .issues(&self.config.github.owner, &self.config.github.repo)
@@ -271,7 +284,7 @@ impl GitHubClient {
     pub async fn list_user_repositories(&self) -> Result<Vec<RepositoryInfo>> {
         tracing::info!("Fetching user repositories");
 
-        let repos = self
+        let mut page = self
             .octocrab
             .current()
             .list_repos_for_authenticated_user()
@@ -281,22 +294,31 @@ impl GitHubClient {
             .context("Failed to fetch user repositories")?;
 
         let mut repo_infos = Vec::new();
-        for repo in repos {
+        loop {
+            for repo in &page {
             let repo_info = RepositoryInfo {
-                name: repo.name,
-                full_name: repo.full_name.unwrap_or_default(),
-                owner: repo.owner.map(|o| o.login).unwrap_or_default(),
-                description: repo.description.unwrap_or_default(),
-                default_branch: repo.default_branch.unwrap_or_else(|| "main".to_string()),
-                private: repo.private.unwrap_or(false),
-                fork: repo.fork.unwrap_or(false),
-                stargazers_count: repo.stargazers_count.unwrap_or(0),
-                forks_count: repo.forks_count.unwrap_or(0),
-                language: repo
-                    .language
-                    .and_then(|v| v.as_str().map(|s| s.to_string())),
+                    name: repo.name.clone(),
+                    full_name: repo.full_name.clone().unwrap_or_default(),
+                    owner: repo.owner.clone().map(|o| o.login).unwrap_or_default(),
+                    description: repo.description.clone().unwrap_or_default(),
+                    default_branch: repo.default_branch.clone().unwrap_or_else(|| "main".to_string()),
+                    private: repo.private.unwrap_or(false),
+                    fork: repo.fork.unwrap_or(false),
+                    stargazers_count: repo.stargazers_count.unwrap_or(0),
+                    forks_count: repo.forks_count.unwrap_or(0),
+                    language: repo
+                        .language
+                        .as_ref()
+                        .and_then(|v| v.as_str().map(|s| s.to_string())),
             };
             repo_infos.push(repo_info);
+            }
+
+            if let Some(next_page) = self.octocrab.get_page(&page.next).await? {
+                page = next_page;
+            } else {
+                break;
+            }
         }
 
         tracing::info!("Found {} repositories", repo_infos.len());
@@ -321,5 +343,97 @@ impl GitHubClient {
         };
 
         Ok(user_info)
+    }
+}
+
+pub(crate) fn pr_matches_criteria(config: &Config, labels: &[String], sprint_regex: &Regex) -> bool {
+    let has_sprint_tag = labels.iter().any(|label| sprint_regex.is_match(label));
+    let has_env_tag = labels.iter().any(|label| label == &config.tags.environment);
+    let has_pending_tag = labels.iter().any(|label| label == &config.tags.pending_tag);
+    has_sprint_tag && has_env_tag && has_pending_tag
+}
+
+/// Trait abstraction to allow mocking PR listing in tests without network calls.
+#[async_trait]
+#[allow(dead_code)]
+pub trait PrLister: Send + Sync {
+    async fn list_matching_prs(&self) -> Result<Vec<PrInfo>>;
+    fn config(&self) -> &Config;
+}
+
+#[async_trait]
+impl PrLister for GitHubClient {
+    async fn list_matching_prs(&self) -> Result<Vec<PrInfo>> {
+        // Call inherent async method
+        GitHubClient::list_matching_prs(self).await
+    }
+    fn config(&self) -> &Config { &self.config }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config_with(env: &str, pending: &str, sprint: &str) -> Config {
+        Config {
+            github: crate::config::GitHubConfig {
+                owner: String::new(),
+                repo: String::new(),
+                base_branch: "main".into(),
+                target_branch: "main".into(),
+                cherry_pick_source_branch: "main".into(),
+                branch_name_template: "ch/{task_id}".into(),
+            },
+            tags: crate::config::TagConfig {
+                sprint_pattern: sprint.into(),
+                environment: env.into(),
+                pending_tag: pending.into(),
+                completed_tag: "done".into(),
+            },
+            ui: crate::config::UiConfig { days_back: 7, page_size: 20, only_forked_repos: false },
+        }
+    }
+
+    #[test]
+    fn pr_label_matching_works() {
+    let cfg = test_config_with("DEV", "pending cherrypick", r"S\d+");
+    let re = Regex::new(&cfg.tags.sprint_pattern).unwrap();
+        let labels = vec![
+            "S12".to_string(),
+            "DEV".to_string(),
+            "pending cherrypick".to_string(),
+        ];
+    assert!(crate::github::pr_matches_criteria(&cfg, &labels, &re));
+
+    let labels2 = vec!["S12".to_string(), "QA".to_string(), "pending cherrypick".to_string()];
+    assert!(!crate::github::pr_matches_criteria(&cfg, &labels2, &re));
+    }
+
+    struct MockLister { #[allow(dead_code)] cfg: Config, prs: Vec<PrInfo> }
+
+    #[async_trait]
+    impl super::PrLister for MockLister {
+        async fn list_matching_prs(&self) -> Result<Vec<PrInfo>> { Ok(self.prs.clone()) }
+        fn config(&self) -> &Config { &self.cfg }
+    }
+
+    #[tokio::test]
+    async fn mock_lister_returns_data_without_network() {
+        let cfg = test_config_with("DEV", "pending cherrypick", r"S\d+");
+        let prs = vec![PrInfo {
+            number: 1,
+            title: "Test".into(),
+            author: "alice".into(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            labels: vec!["S1".into(), "DEV".into(), "pending cherrypick".into()],
+            commits: vec![],
+            head_sha: "abcd1234".into(),
+            base_ref: "main".into(),
+            head_ref: "feature".into(),
+        }];
+        let mock = MockLister { cfg, prs: prs.clone() };
+        let got = mock.list_matching_prs().await.unwrap();
+        assert_eq!(got.len(), prs.len());
     }
 }

@@ -4,7 +4,7 @@ use crossterm::event::{
 };
 use crossterm::execute;
 use crossterm::terminal::{
-    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use ratatui::prelude::*;
 use ratatui::widgets::*;
@@ -35,12 +35,15 @@ impl ConfigSelectorApp {
         let options = vec![
             ConfigOption {
                 title: "Load from cherry.env".to_string(),
-                description: "Use project-specific configuration from cherry.env file (recommended)".to_string(),
+                description:
+                    "Use project-specific configuration from cherry.env file (recommended)"
+                        .to_string(),
                 choice: ConfigChoice::LoadFromEnv,
             },
             ConfigOption {
                 title: "Use defaults only".to_string(),
-                description: "Start with default settings, ignore all configuration files".to_string(),
+                description: "Start with default settings, ignore all configuration files"
+                    .to_string(),
                 choice: ConfigChoice::UseDefaults,
             },
             ConfigOption {
@@ -128,23 +131,27 @@ impl ConfigSelectorApp {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(5),  // Title and info
-                Constraint::Min(10),    // Options list
-                Constraint::Length(3),  // Instructions
+                Constraint::Length(5), // Title and info
+                Constraint::Min(10),   // Options list
+                Constraint::Length(3), // Instructions
             ])
             .split(f.area());
 
         // Title and info
         let title_text = vec![
-            Line::from(vec![
-                Span::styled("Configuration Loader", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan))
-            ]),
+            Line::from(vec![Span::styled(
+                "Configuration Loader",
+                Style::default()
+                    .add_modifier(Modifier::BOLD)
+                    .fg(Color::Cyan),
+            )]),
             Line::from(""),
-            Line::from(vec![
-                Span::styled("Found cherry.env file. Choose how to load configuration:", Style::default().fg(Color::White))
-            ]),
+            Line::from(vec![Span::styled(
+                "Found cherry.env file. Choose how to load configuration:",
+                Style::default().fg(Color::White),
+            )]),
         ];
-        
+
         let title_paragraph = Paragraph::new(title_text)
             .block(
                 Block::default()
@@ -156,30 +163,38 @@ impl ConfigSelectorApp {
         f.render_widget(title_paragraph, chunks[0]);
 
         // Options list
-        let items: Vec<ListItem> = self.options
+        let items: Vec<ListItem> = self
+            .options
             .iter()
             .enumerate()
             .map(|(i, option)| {
                 let is_selected = i == self.selected_index;
-                
+
                 let number = format!("{}.", i + 1);
                 let title_line = format!("{} {}", number, option.title);
                 let desc_line = format!("   {}", option.description);
 
                 let lines = vec![
-                    Line::from(Span::styled(title_line,
+                    Line::from(Span::styled(
+                        title_line,
                         if is_selected {
-                            Style::default().fg(Color::Black).bg(Color::LightBlue).add_modifier(Modifier::BOLD)
+                            Style::default()
+                                .fg(Color::Black)
+                                .bg(Color::LightBlue)
+                                .add_modifier(Modifier::BOLD)
                         } else {
-                            Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
-                        }
+                            Style::default()
+                                .fg(Color::White)
+                                .add_modifier(Modifier::BOLD)
+                        },
                     )),
-                    Line::from(Span::styled(desc_line,
+                    Line::from(Span::styled(
+                        desc_line,
                         if is_selected {
                             Style::default().fg(Color::DarkGray).bg(Color::LightBlue)
                         } else {
                             Style::default().fg(Color::Gray)
-                        }
+                        },
                     )),
                     Line::from(""), // Separator
                 ];
@@ -188,20 +203,17 @@ impl ConfigSelectorApp {
             })
             .collect();
 
-        let list = List::new(items)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" Options ")
-                    .title_style(Style::default().fg(Color::Yellow)),
-            );
+        let list = List::new(items).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Options ")
+                .title_style(Style::default().fg(Color::Yellow)),
+        );
 
         f.render_widget(list, chunks[1]);
 
         // Instructions
-        let instructions = vec![
-            "↑/↓: Navigate | 1-3: Quick select | Enter: Confirm | Esc/q: Cancel"
-        ];
+        let instructions = ["↑/↓: Navigate | 1-3: Quick select | Enter: Confirm | Esc/q: Cancel"];
         let instructions_paragraph = Paragraph::new(instructions.join("\n"))
             .block(
                 Block::default()
@@ -283,7 +295,9 @@ impl ConfigSelectorApp {
         let title_text = vec![
             Line::from(Span::styled(
                 "Task ID Input",
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             )),
             Line::from(""),
             Line::from(Span::styled(
@@ -308,7 +322,8 @@ impl ConfigSelectorApp {
         f.render_widget(input_paragraph, chunks[1]);
 
         // Preview
-        let preview_branch = template.replace("{task_id}", if input.is_empty() { "GH-123" } else { input });
+        let preview_branch =
+            template.replace("{task_id}", if input.is_empty() { "GH-123" } else { input });
         let preview_text = vec![
             Line::from(Span::styled(
                 "Branch name preview:",
@@ -317,7 +332,9 @@ impl ConfigSelectorApp {
             Line::from(""),
             Line::from(Span::styled(
                 preview_branch,
-                Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
             )),
         ];
         let preview_paragraph = Paragraph::new(preview_text)
@@ -331,7 +348,7 @@ impl ConfigSelectorApp {
         f.render_widget(preview_paragraph, chunks[2]);
 
         // Instructions
-        let instructions = vec!["Type task ID | Enter: Confirm | Backspace: Delete | Esc: Cancel"];
+        let instructions = ["Type task ID | Enter: Confirm | Backspace: Delete | Esc: Cancel"];
         let instructions_paragraph = Paragraph::new(instructions.join("\n"))
             .block(
                 Block::default()

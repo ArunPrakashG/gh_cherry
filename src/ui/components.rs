@@ -34,7 +34,7 @@ impl MainMenu {
         f.render_widget(title, chunks[0]);
 
         // Menu items
-        let menu_items = vec!["1. View and Cherry-pick PRs", "r. Refresh data", "q. Quit"];
+    let menu_items = ["1. View and Cherry-pick PRs", "r. Refresh data", "q. Quit"];
 
         let menu: Vec<ListItem> = menu_items.iter().map(|item| ListItem::new(*item)).collect();
 

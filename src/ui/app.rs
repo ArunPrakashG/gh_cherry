@@ -4,19 +4,16 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{
-    backend::CrosstermBackend,
-    Terminal,
-    Frame,
-};
+use ratatui::{backend::CrosstermBackend, Frame, Terminal};
 use std::io;
 
 use crate::config::Config;
-use crate::github::GitHubClient;
 use crate::git::GitOperations;
+use crate::github::GitHubClient;
+use crate::util::short_sha;
 
-use super::state::{AppState, Screen};
 use super::components::{MainMenu, PrList, ProgressView};
+use super::state::{AppState, Screen};
 
 pub struct App {
     state: AppState,
@@ -72,7 +69,10 @@ impl App {
         result
     }
 
-    async fn run_app<B: ratatui::backend::Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
+    async fn run_app<B: ratatui::backend::Backend>(
+        &mut self,
+        terminal: &mut Terminal<B>,
+    ) -> Result<()> {
         loop {
             terminal.draw(|f| self.ui(f))?;
 
@@ -118,9 +118,9 @@ impl App {
 
     fn render_error(&self, f: &mut Frame) {
         use ratatui::{
-            layout::{Constraint, Layout, Direction},
-            widgets::{Block, Borders, Paragraph, Wrap},
+            layout::{Constraint, Direction, Layout},
             style::{Color, Style},
+            widgets::{Block, Borders, Paragraph, Wrap},
         };
 
         let chunks = Layout::default()
@@ -129,7 +129,11 @@ impl App {
             .constraints([Constraint::Percentage(100)].as_ref())
             .split(f.area());
 
-        let error_message = self.state.error_message.as_deref().unwrap_or("Unknown error");
+        let error_message = self
+            .state
+            .error_message
+            .as_deref()
+            .unwrap_or("Unknown error");
         let paragraph = Paragraph::new(error_message)
             .block(Block::default().title("Error").borders(Borders::ALL))
             .style(Style::default().fg(Color::Red))
@@ -144,17 +148,15 @@ impl App {
                 self.should_quit = true;
                 return Ok(false);
             }
-            KeyCode::Esc => {
-                match &self.state.current_screen {
-                    Screen::MainMenu => {
-                        self.should_quit = true;
-                        return Ok(false);
-                    }
-                    _ => {
-                        self.state.current_screen = Screen::MainMenu;
-                    }
+            KeyCode::Esc => match &self.state.current_screen {
+                Screen::MainMenu => {
+                    self.should_quit = true;
+                    return Ok(false);
                 }
-            }
+                _ => {
+                    self.state.current_screen = Screen::MainMenu;
+                }
+            },
             _ => {
                 match &self.state.current_screen {
                     Screen::MainMenu => self.handle_main_menu_input(key).await?,
@@ -236,12 +238,17 @@ impl App {
             return Ok(());
         };
 
-        self.state.set_loading(&format!("Cherry-picking PR #{}: {}", pr.number, pr.title));
+        self.state
+            .set_loading(&format!("Cherry-picking PR #{}: {}", pr.number, pr.title));
         self.state.current_screen = Screen::Progress;
 
         // Switch to target branch
-        if let Err(e) = self.git_ops.checkout_branch(&self.config.github.target_branch) {
-            self.state.set_error(format!("Failed to checkout target branch: {}", e));
+        if let Err(e) = self
+            .git_ops
+            .checkout_branch(&self.config.github.target_branch)
+        {
+            self.state
+                .set_error(format!("Failed to checkout target branch: {}", e));
             self.state.current_screen = Screen::Error;
             return Ok(());
         }
@@ -259,9 +266,10 @@ impl App {
                         }
                     } else {
                         // Handle conflicts
+                        let short = short_sha(&commit.sha);
                         self.state.set_error(format!(
                             "Conflicts in commit {}: {:?}. Please resolve manually and press any key to continue.",
-                            &commit.sha[..8],
+                            short,
                             result.conflicts
                         ));
                         self.state.current_screen = Screen::Error;
@@ -270,7 +278,9 @@ impl App {
                     }
                 }
                 Err(e) => {
-                    self.state.set_error(format!("Failed to cherry-pick commit {}: {}", &commit.sha[..8], e));
+                    let short = short_sha(&commit.sha);
+                    self.state
+                        .set_error(format!("Failed to cherry-pick commit {}: {}", short, e));
                     self.state.current_screen = Screen::Error;
                     success = false;
                     break;
@@ -285,15 +295,20 @@ impl App {
             }
 
             // Add comment to PR
-            if let Err(e) = self.github_client.add_cherry_pick_comment(
-                pr.number,
-                &self.config.github.target_branch,
-                &cherry_picked_commits,
-            ).await {
+            if let Err(e) = self
+                .github_client
+                .add_cherry_pick_comment(
+                    pr.number,
+                    &self.config.github.target_branch,
+                    &cherry_picked_commits,
+                )
+                .await
+            {
                 tracing::warn!("Failed to add cherry-pick comment: {}", e);
             }
 
-            self.state.set_success(&format!("Successfully cherry-picked PR #{}", pr.number));
+            self.state
+                .set_success(&format!("Successfully cherry-picked PR #{}", pr.number));
             self.state.current_screen = Screen::PrList;
         }
 

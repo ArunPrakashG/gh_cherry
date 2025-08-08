@@ -18,7 +18,7 @@ pub struct AppState {
     pub success_message: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct ListState {
     selected: Option<usize>,
     items_count: usize,
@@ -87,6 +87,40 @@ impl ListState {
                 self.selected = Some(count - 1);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ListState;
+
+    #[test]
+    fn selection_wraps_and_initializes() {
+        let mut ls = ListState::new();
+        ls.set_items_count(3);
+        assert_eq!(ls.selected(), Some(0));
+
+        ls.select_next();
+        assert_eq!(ls.selected(), Some(1));
+
+        ls.select_next();
+        ls.select_next(); // wrap to 0
+        assert_eq!(ls.selected(), Some(0));
+
+        ls.select_previous(); // wrap to last
+        assert_eq!(ls.selected(), Some(2));
+    }
+
+    #[test]
+    fn selection_resets_when_items_change() {
+        let mut ls = ListState::new();
+        ls.set_items_count(5);
+        ls.select(Some(4));
+        assert_eq!(ls.selected(), Some(4));
+        ls.set_items_count(3);
+        assert_eq!(ls.selected(), Some(2));
+        ls.set_items_count(0);
+        assert_eq!(ls.selected(), None);
     }
 }
 

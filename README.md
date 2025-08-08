@@ -10,6 +10,12 @@ A Terminal User Interface (TUI) application built in Rust to assist with cherry-
 - � **Auto-Discovery**: Automatically discovers available organizations and repositories when not specified
 - �🔐 **GitHub Authentication**: Seamlessly integrates with GitHub CLI auth or supports Personal Access Tokens
 - 🍒 **Interactive Cherry-Picking**: Select and cherry-pick individual PRs or commits with visual feedback
+
+````
+
+#### Windows PowerShell quick commands
+
+```powershell
 - ⚡ **Conflict Resolution**: Graceful handling of merge conflicts with interactive resolution
 - 🏷️ **Automatic Tag Management**: Updates PR tags from "pending cherrypick" to "cherry picked" after successful operations
 - 📊 **Rich TUI**: Modern terminal interface built with Ratatui for an excellent user experience
@@ -21,6 +27,8 @@ This tool is designed for development teams using a Git workflow where:
 - Developers create PRs to a `develop` branch
 - PRs are tagged with sprint identifiers (e.g., "S28") and environment tags ("DEV")
 - PRs include a "pending cherrypick" tag when they need to be cherry-picked to release branches
+````
+
 - After successful cherry-picking, tags are updated to "cherry picked"
 
 ## Installation

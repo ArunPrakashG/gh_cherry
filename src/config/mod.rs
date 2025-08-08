@@ -62,6 +62,7 @@ impl Default for Config {
 }
 
 impl Config {
+    #[allow(clippy::too_many_arguments)] // Accepting many optional overrides keeps CLI mapping straightforward
     pub fn load(path: Option<&str>) -> Result<Self> {
         let config_path = match path {
             Some(p) => p.to_string(),
@@ -212,6 +213,7 @@ impl Config {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)] // Many optional CLI-driven overrides; refactor later with a builder if needed
     pub fn with_overrides(
         mut self,
         owner: Option<String>,
